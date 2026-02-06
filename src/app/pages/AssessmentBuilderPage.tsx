@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import RecruiterLayout from '../components/RecruiterLayout';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -17,8 +17,10 @@ import {
   Clock,
   AlertCircle,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
+import { jobAPI } from '../services/api'; // ✅ FIXED: Relative import
 
 interface AssessmentBuilderPageProps {
   navigate: (page: string) => void;
@@ -26,11 +28,12 @@ interface AssessmentBuilderPageProps {
 }
 
 interface Question {
-  id: number;
+  id: string;
   type: 'objective' | 'subjective' | 'coding';
   text: string;
   skill: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
+  options?: string[];
 }
 
 export default function AssessmentBuilderPage({ navigate, onLogout }: AssessmentBuilderPageProps) {
@@ -39,89 +42,132 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
   const [objectiveWeight, setObjectiveWeight] = useState([40]);
   const [subjectiveWeight, setSubjectiveWeight] = useState([30]);
   const [codingWeight, setCodingWeight] = useState([30]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [jobId, setJobId] = useState('');
 
-  const [questions, setQuestions] = useState<Question[]>([
-    {
-      id: 1,
-      type: 'objective',
-      text: 'What is the primary purpose of React hooks?',
-      skill: 'React',
-      difficulty: 'Medium'
-    },
-    {
-      id: 2,
-      type: 'objective',
-      text: 'Which of the following is NOT a valid HTTP method?',
-      skill: 'REST APIs',
-      difficulty: 'Easy'
-    },
-    {
-      id: 3,
-      type: 'subjective',
-      text: 'Explain the difference between authentication and authorization in web applications.',
-      skill: 'Security',
-      difficulty: 'Medium'
-    },
-    {
-      id: 4,
-      type: 'coding',
-      text: 'Implement a function to debounce API calls in JavaScript.',
-      skill: 'JavaScript',
-      difficulty: 'Hard'
-    },
-    {
-      id: 5,
-      type: 'objective',
-      text: 'What is the time complexity of searching in a balanced binary search tree?',
-      skill: 'Data Structures',
-      difficulty: 'Medium'
-    },
-    {
-      id: 6,
-      type: 'coding',
-      text: 'Create a REST API endpoint to handle user authentication.',
-      skill: 'Node.js',
-      difficulty: 'Hard'
-    },
-    {
-      id: 7,
-      type: 'subjective',
-      text: 'Describe your approach to optimizing database queries in a production environment.',
-      skill: 'MongoDB',
-      difficulty: 'Hard'
-    },
-    {
-      id: 8,
-      type: 'objective',
-      text: 'Which design pattern is most suitable for managing global state in React?',
-      skill: 'React',
-      difficulty: 'Medium'
-    },
-  ]);
+  useEffect(() => {
+    loadLatestJob();
+  }, []);
+
+  const loadLatestJob = async () => {
+    try {
+      setLoading(true);
+      const response = await jobAPI.getJobs();
+      const jobs = response.data || []; // ✅ FIXED: Handle response structure
+      
+      if (jobs.length > 0) {
+        const latestJob = jobs[0];
+        setJobId(latestJob._id || latestJob.id); // ✅ FIXED: Handle both _id and id
+        setAssessmentTitle(latestJob.title);
+        
+        // Load or generate questions
+        if (latestJob.questions && latestJob.questions.length > 0) {
+          setQuestions(latestJob.questions);
+        } else {
+          await generateQuestions(latestJob._id || latestJob.id);
+        }
+      } else {
+        // ✅ No jobs found - show empty state
+        console.log('No jobs found');
+      }
+    } catch (error) {
+      console.error('❌ Load job error:', error);
+      // ✅ FIXED: Better error handling
+      alert('Failed to load jobs. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateQuestions = async (id: string) => {
+    try {
+      setLoading(true);
+      console.log('🤖 Generating questions for job:', id);
+      
+      await jobAPI.generateAssessment(id);
+      
+      // ✅ Mock questions for demo (remove when backend is ready)
+      setQuestions([
+        {
+          id: '1',
+          type: 'objective',
+          text: 'What is the primary purpose of React hooks?',
+          skill: 'React',
+          difficulty: 'Medium',
+          options: ['Replace classes', 'Add state to functional components', 'Improve performance', 'Enable routing']
+        },
+        {
+          id: '2',
+          type: 'coding',
+          text: 'Implement a debounce function in JavaScript',
+          skill: 'JavaScript',
+          difficulty: 'Hard'
+        },
+        {
+          id: '3',
+          type: 'subjective',
+          text: 'Explain the difference between authentication and authorization',
+          skill: 'Security',
+          difficulty: 'Medium'
+        }
+      ]);
+      
+      console.log('✅ Questions generated');
+    } catch (error) {
+      console.error('❌ Generate questions error:', error);
+      alert('Failed to generate questions. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveAssessment = async () => {
+    if (!jobId) {
+      alert('No job selected. Please upload a job description first.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('💾 Saving assessment...');
+      
+      // ✅ FIXED: Add updateJob method to jobAPI
+      await jobAPI.updateJob(jobId, {
+        assessmentConfig: {
+          duration,
+          questionDistribution: {
+            objective: objectiveWeight[0],
+            subjective: subjectiveWeight[0],
+            programming: codingWeight[0]
+          }
+        }
+      });
+      
+      alert('Assessment saved successfully!');
+    } catch (error) {
+      console.error('❌ Save error:', error);
+      alert('Failed to save assessment');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getQuestionIcon = (type: string) => {
     switch (type) {
-      case 'objective':
-        return <CheckCircle2 className="w-4 h-4" />;
-      case 'subjective':
-        return <MessageSquare className="w-4 h-4" />;
-      case 'coding':
-        return <Code className="w-4 h-4" />;
-      default:
-        return <FileText className="w-4 h-4" />;
+      case 'objective': return <CheckCircle2 className="w-4 h-4" />;
+      case 'subjective': return <MessageSquare className="w-4 h-4" />;
+      case 'coding': return <Code className="w-4 h-4" />;
+      default: return <FileText className="w-4 h-4" />;
     }
   };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'Easy':
-        return 'bg-emerald-100 text-emerald-700';
-      case 'Medium':
-        return 'bg-amber-100 text-amber-700';
-      case 'Hard':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-slate-100 text-slate-700';
+      case 'Easy': return 'bg-emerald-100 text-emerald-700';
+      case 'Medium': return 'bg-amber-100 text-amber-700';
+      case 'Hard': return 'bg-red-100 text-red-700';
+      default: return 'bg-slate-100 text-slate-700';
     }
   };
 
@@ -135,6 +181,16 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
         {/* Left Panel - Configuration */}
         <div className="w-80 bg-white border-r border-slate-200 p-6 overflow-y-auto">
           <h2 className="text-lg font-semibold text-slate-900 mb-6">Assessment Settings</h2>
+
+          {/* Loading State */}
+          {loading && (
+            <div className="mb-6 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+              <div className="flex items-center gap-2 text-sm text-indigo-700">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Loading assessment...</span>
+              </div>
+            </div>
+          )}
 
           {/* Assessment Title */}
           <div className="mb-6">
@@ -169,7 +225,6 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
               Section Weightage
             </h3>
 
-            {/* Objective */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-slate-700">Objective</label>
@@ -185,7 +240,6 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
               <p className="text-xs text-slate-500">{objectiveQuestions.length} questions</p>
             </div>
 
-            {/* Subjective */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-slate-700">Subjective</label>
@@ -201,7 +255,6 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
               <p className="text-xs text-slate-500">{subjectiveQuestions.length} questions</p>
             </div>
 
-            {/* Coding */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-slate-700">Coding</label>
@@ -232,24 +285,14 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-slate-900 mb-3">Difficulty Distribution</h3>
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Easy</span>
-                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                  {questions.filter(q => q.difficulty === 'Easy').length}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Medium</span>
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                  {questions.filter(q => q.difficulty === 'Medium').length}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-600">Hard</span>
-                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                  {questions.filter(q => q.difficulty === 'Hard').length}
-                </Badge>
-              </div>
+              {['Easy', 'Medium', 'Hard'].map((diff) => (
+                <div key={diff} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">{diff}</span>
+                  <Badge variant="outline" className={getDifficultyColor(diff)}>
+                    {questions.filter(q => q.difficulty === diff).length}
+                  </Badge>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -257,18 +300,12 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
           <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
             <h3 className="text-sm font-semibold text-slate-900 mb-3">Anti-Cheat Settings</h3>
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" className="rounded border-slate-300" defaultChecked />
-                Track time per question
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" className="rounded border-slate-300" defaultChecked />
-                Disable copy/paste
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input type="checkbox" className="rounded border-slate-300" defaultChecked />
-                Randomize questions
-              </label>
+              {['Track time per question', 'Disable copy/paste', 'Randomize questions'].map((setting, i) => (
+                <label key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" className="rounded border-slate-300" defaultChecked />
+                  {setting}
+                </label>
+              ))}
             </div>
           </div>
         </div>
@@ -285,7 +322,12 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
                     <Plus className="w-4 h-4 mr-2" />
                     Add Question
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => jobId && generateQuestions(jobId)} 
+                    disabled={loading || !jobId}
+                  >
                     <Sparkles className="w-4 h-4 mr-2" />
                     Generate More
                   </Button>
@@ -295,22 +337,29 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
             </div>
 
             {/* Questions List */}
-            <div className="space-y-4">
-              {questions.map((question, index) => (
-                <div
-                  key={question.id}
-                  className="bg-white rounded-lg border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-sm transition-all"
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Question Number */}
-                    <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-sm font-semibold text-slate-700 flex-shrink-0">
-                      {index + 1}
-                    </div>
+            {questions.length === 0 ? (
+              <div className="text-center py-20 text-slate-500">
+                <Sparkles className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                <p className="text-lg mb-2">No questions yet</p>
+                <p className="text-sm">Upload a job description to generate questions</p>
+                <Button className="mt-4" onClick={() => navigate('job-upload')}>
+                  Upload Job Description
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {questions.map((question, index) => (
+                  <div
+                    key={question.id}
+                    className="bg-white rounded-lg border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-sm font-semibold text-slate-700 flex-shrink-0">
+                        {index + 1}
+                      </div>
 
-                    {/* Question Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3 mb-3">
                           <div
                             className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                               question.type === 'objective'
@@ -322,37 +371,36 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
                           >
                             {getQuestionIcon(question.type)}
                           </div>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-slate-900 font-medium mb-2">{question.text}</p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {question.skill}
-                            </Badge>
-                            <Badge className={`text-xs ${getDifficultyColor(question.difficulty)}`}>
-                              {question.difficulty}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {question.type}
-                            </Badge>
+                          <div className="flex-1">
+                            <p className="text-slate-900 font-medium mb-2">{question.text}</p>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {question.skill}
+                              </Badge>
+                              <Badge className={`text-xs ${getDifficultyColor(question.difficulty)}`}>
+                                {question.difficulty}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs capitalize">
+                                {question.type}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -371,7 +419,7 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline">
+          <Button variant="outline" onClick={saveAssessment} disabled={loading || !jobId}>
             <Save className="w-4 h-4 mr-2" />
             Save Draft
           </Button>
@@ -379,7 +427,7 @@ export default function AssessmentBuilderPage({ navigate, onLogout }: Assessment
             <Play className="w-4 h-4 mr-2" />
             Preview as Candidate
           </Button>
-          <Button className="bg-indigo-600 hover:bg-indigo-700">
+          <Button className="bg-indigo-600 hover:bg-indigo-700" disabled={questions.length === 0}>
             <CheckCircle2 className="w-4 h-4 mr-2" />
             Publish Assessment
           </Button>

@@ -1,16 +1,24 @@
 import { useState } from 'react';
 import RecruiterLayout from '../components/RecruiterLayout';
 import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
+import { Input } from '../components/ui/input';
+import { Badge } from '../components/ui/badge';
 import {
   Upload,
   FileText,
   Sparkles,
   CheckCircle2,
-  X,
-  ChevronDown,
-  ChevronUp
+  Loader2,
+  Brain,
+  Zap,
+  Target,
+  Code,
+  AlertCircle,
+  ArrowRight,
+  Copy,
+  X
 } from 'lucide-react';
+import { jobAPI } from '../services/api.ts';
 
 interface JobUploadPageProps {
   navigate: (page: string) => void;
@@ -18,240 +26,383 @@ interface JobUploadPageProps {
 }
 
 export default function JobUploadPage({ navigate, onLogout }: JobUploadPageProps) {
-  const [jobDescription, setJobDescription] = useState('');
-  const [isParsed, setIsParsed] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [step, setStep] = useState(1); // 1: Upload, 2: Parsing, 3: Review
+  const [jobTitle, setJobTitle] = useState('');
+  const [rawJD, setRawJD] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [parsedData, setParsedData] = useState<any>(null);
+  const [jobId, setJobId] = useState('');
 
-  // Mock parsed data
-  const parsedData = {
-    role: 'Senior Full Stack Developer',
-    experienceLevel: '5-7 years',
-    requiredSkills: ['JavaScript', 'React', 'Node.js', 'TypeScript', 'MongoDB', 'REST APIs'],
-    preferredSkills: ['GraphQL', 'Docker', 'AWS', 'Redis'],
-    tools: ['Git', 'Jira', 'VS Code'],
-    complexity: 'High',
-    educationLevel: "Bachelor's in Computer Science or related field"
-  };
+  // ✅ Parse JD with AI
+  const handleParseJD = async () => {
+    if (!jobTitle || !rawJD) {
+      setError('Please provide both job title and description');
+      return;
+    }
 
-  const handleParse = () => {
-    if (jobDescription.trim()) {
-      setIsParsed(true);
+    try {
+      setLoading(true);
+      setError('');
+      setStep(2);
+
+      console.log('🤖 Parsing JD with AI...', { jobTitle, rawJD: rawJD.substring(0, 100) });
+      
+      // Call backend API
+      const response = await jobAPI.createJob({
+        title: jobTitle,
+        rawDescription: rawJD
+      });
+
+      console.log('✅ JD parsed successfully:', response.data);
+      
+      setParsedData(response.data.data.parsedData);
+      setJobId(response.data.data._id);
+      setStep(3);
+      
+    } catch (err: any) {
+      console.error('❌ Parse error:', err);
+      setError(err.response?.data?.message || 'Failed to parse job description');
+      setStep(1);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleGenerateAssessment = () => {
-    navigate('assessment-builder');
+  // ✅ Generate assessment
+  const handleGenerateAssessment = async () => {
+    try {
+      setLoading(true);
+      console.log('🎯 Generating assessment for job:', jobId);
+      
+      await jobAPI.generateAssessment(jobId);
+      console.log('✅ Assessment generated');
+      
+      // Navigate to assessment builder
+      navigate('assessment-builder');
+      
+    } catch (err: any) {
+      console.error('❌ Generate assessment error:', err);
+      setError('Failed to generate assessment');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const removeSkill = (skill: string, category: 'required' | 'preferred') => {
-    // Mock removal - in real app would update state
+  // Sample JD
+  const fillSampleJD = () => {
+    setJobTitle('Senior Full Stack Developer');
+    setRawJD(`We are seeking an experienced Full Stack Developer to join our growing team.
+
+Requirements:
+- 5+ years of experience in web development
+- Strong proficiency in React.js and Node.js
+- Experience with MongoDB and database design
+- Solid understanding of RESTful APIs
+- Knowledge of TypeScript and modern JavaScript (ES6+)
+- Familiarity with Git and version control
+- Experience with cloud platforms (AWS/Azure)
+
+Responsibilities:
+- Develop and maintain web applications
+- Write clean, maintainable code
+- Collaborate with cross-functional teams
+- Participate in code reviews
+- Mentor junior developers
+
+Nice to have:
+- Experience with Docker and Kubernetes
+- Knowledge of CI/CD pipelines
+- Understanding of microservices architecture`);
   };
 
   return (
     <RecruiterLayout navigate={navigate} onLogout={onLogout} currentPage="job-upload">
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Job Description Parser</h1>
-          <p className="text-slate-600 mt-1">Upload or paste your job description and let AI extract the requirements</p>
-        </div>
+      <div className="p-6">
+        {/* Step 1: Upload JD */}
+        {step === 1 && (
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="w-8 h-8 text-indigo-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">Create New Assessment</h1>
+              <p className="text-slate-600">Upload your job description and let AI do the magic</p>
+            </div>
 
-        {/* Upload Section */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">Job Description Input</h2>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Upload className="w-4 h-4 mr-2" />
-                Upload PDF/DOC
+            <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-sm">
+              {/* Error */}
+              {error && (
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-red-800">{error}</p>
+                  </div>
+                  <button onClick={() => setError('')}>
+                    <X className="w-4 h-4 text-red-600" />
+                  </button>
+                </div>
+              )}
+
+              {/* Job Title */}
+              <div className="mb-6">
+                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                  Job Title *
+                </label>
+                <Input
+                  placeholder="e.g., Senior Full Stack Developer"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  className="text-lg"
+                />
+              </div>
+
+              {/* Job Description */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-slate-700">
+                    Job Description *
+                  </label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fillSampleJD}
+                    className="text-indigo-600"
+                  >
+                    <Copy className="w-4 h-4 mr-1" />
+                    Use Sample
+                  </Button>
+                </div>
+                <textarea
+                  placeholder="Paste your complete job description here...
+
+Include:
+- Required skills and experience
+- Responsibilities
+- Technologies and tools
+- Qualifications"
+                  value={rawJD}
+                  onChange={(e) => setRawJD(e.target.value)}
+                  className="w-full h-64 p-4 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm"
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  {rawJD.length} characters • Recommended: 500-2000 characters
+                </p>
+              </div>
+
+              {/* Features */}
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 mb-6">
+                <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-indigo-600" />
+                  AI Will Extract:
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { icon: Target, label: 'Required Skills' },
+                    { icon: Zap, label: 'Experience Level' },
+                    { icon: Code, label: 'Technologies' },
+                    { icon: CheckCircle2, label: 'Qualifications' }
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                      <item.icon className="w-4 h-4 text-indigo-600" />
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Upload File Option */}
+              <div className="mb-6">
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-indigo-400 transition-colors cursor-pointer">
+                  <Upload className="w-8 h-8 text-slate-400 mx-auto mb-3" />
+                  <p className="text-sm text-slate-600 mb-1">Or upload a file</p>
+                  <p className="text-xs text-slate-500">PDF, DOC, DOCX (Max 5MB)</p>
+                  <input type="file" className="hidden" accept=".pdf,.doc,.docx" />
+                </div>
+              </div>
+
+              {/* Submit */}
+              <Button
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-lg py-6"
+                onClick={handleParseJD}
+                disabled={!jobTitle || !rawJD}
+              >
+                <Sparkles className="w-5 h-5 mr-2" />
+                Parse with AI
+                <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
           </div>
+        )}
 
-          <Textarea
-            placeholder="Paste your job description here...&#10;&#10;Example:&#10;We are looking for a Senior Full Stack Developer with 5+ years of experience...&#10;&#10;Requirements:&#10;- Strong experience with React and Node.js&#10;- Proficiency in TypeScript and MongoDB&#10;- Experience with REST APIs and microservices..."
-            value={jobDescription}
-            onChange={(e) => setJobDescription(e.target.value)}
-            className="min-h-[300px] font-mono text-sm"
-          />
-
-          <div className="flex items-center justify-between mt-4">
-            <p className="text-sm text-slate-500">
-              {jobDescription.length} characters
-            </p>
-            <Button 
-              onClick={handleParse} 
-              disabled={!jobDescription.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Parse with AI
-            </Button>
-          </div>
-        </div>
-
-        {/* Parsed Results */}
-        {isParsed && (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-200 p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900 mb-1">AI Parsing Complete</h2>
-                    <p className="text-sm text-slate-600">
-                      We've extracted key requirements from your job description
-                    </p>
-                  </div>
+        {/* Step 2: Parsing (Loading) */}
+        {step === 2 && (
+          <div className="max-w-2xl mx-auto text-center py-20">
+            <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+              <Sparkles className="w-12 h-12 text-indigo-600 animate-pulse" />
+              <div className="absolute inset-0 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-3">AI is analyzing your JD...</h2>
+            <p className="text-slate-600 mb-8">This usually takes 5-10 seconds</p>
+            
+            <div className="space-y-3 max-w-md mx-auto">
+              {[
+                'Extracting required skills',
+                'Identifying experience level',
+                'Parsing technologies',
+                'Analyzing responsibilities'
+              ].map((text, i) => (
+                <div key={i} className="flex items-center gap-3 text-left bg-white rounded-lg p-4 border border-slate-200">
+                  <Loader2 className="w-5 h-5 text-indigo-600 animate-spin flex-shrink-0" />
+                  <span className="text-slate-700">{text}</span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsExpanded(!isExpanded)}
-                >
-                  {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Review Parsed Data */}
+        {step === 3 && parsedData && (
+          <div className="max-w-5xl mx-auto">
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">{jobTitle}</h1>
+                  <p className="text-slate-600">Review AI-extracted data</p>
+                </div>
               </div>
             </div>
 
-            {/* Content */}
-            {isExpanded && (
-              <div className="p-6 space-y-6">
-                {/* Role & Experience */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-2 block">Role Title</label>
-                    <div className="px-4 py-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <p className="text-slate-900 font-medium">{parsedData.role}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-2 block">Experience Level</label>
-                    <div className="px-4 py-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <p className="text-slate-900 font-medium">{parsedData.experienceLevel}</p>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Required Skills */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white rounded-xl border border-slate-200 p-6">
+                  <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                    <Target className="w-5 h-5 text-indigo-600" />
+                    Required Skills ({parsedData.requiredSkills?.length || 0})
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {parsedData.requiredSkills?.map((skill: any, i: number) => (
+                      <Badge
+                        key={i}
+                        className={`px-3 py-1 ${
+                          skill.importance === 'critical'
+                            ? 'bg-red-100 text-red-700 border-red-200'
+                            : skill.importance === 'high'
+                            ? 'bg-amber-100 text-amber-700 border-amber-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {skill.skill} • {skill.weight}%
+                      </Badge>
+                    ))}
                   </div>
                 </div>
 
-                {/* Required Skills */}
-                <div>
-                  <label className="text-sm font-medium text-slate-700 mb-2 block">Required Skills</label>
-                  <div className="flex flex-wrap gap-2">
-                    {parsedData.requiredSkills.map((skill) => (
-                      <div
-                        key={skill}
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        {skill}
-                        <button className="hover:bg-indigo-200 rounded p-0.5">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                    <button className="px-3 py-2 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-600 hover:border-indigo-400 hover:text-indigo-600">
-                      + Add Skill
-                    </button>
+                {/* Responsibilities */}
+                {parsedData.responsibilities?.length > 0 && (
+                  <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      Key Responsibilities
+                    </h3>
+                    <ul className="space-y-2">
+                      {parsedData.responsibilities.map((resp: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                          <span className="w-1.5 h-1.5 bg-slate-400 rounded-full mt-2 flex-shrink-0"></span>
+                          <span>{resp}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </div>
-
-                {/* Preferred Skills */}
-                <div>
-                  <label className="text-sm font-medium text-slate-700 mb-2 block">Preferred Skills</label>
-                  <div className="flex flex-wrap gap-2">
-                    {parsedData.preferredSkills.map((skill) => (
-                      <div
-                        key={skill}
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium"
-                      >
-                        {skill}
-                        <button className="hover:bg-emerald-200 rounded p-0.5">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                    <button className="px-3 py-2 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-600 hover:border-emerald-400 hover:text-emerald-600">
-                      + Add Skill
-                    </button>
-                  </div>
-                </div>
+                )}
 
                 {/* Tools & Technologies */}
-                <div>
-                  <label className="text-sm font-medium text-slate-700 mb-2 block">Tools & Technologies</label>
-                  <div className="flex flex-wrap gap-2">
-                    {parsedData.tools.map((tool) => (
-                      <div
-                        key={tool}
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium"
-                      >
-                        {tool}
-                        <button className="hover:bg-slate-200 rounded p-0.5">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+                {parsedData.tools?.length > 0 && (
+                  <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                      <Code className="w-5 h-5 text-purple-600" />
+                      Tools & Technologies
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {parsedData.tools.map((tool: string, i: number) => (
+                        <Badge key={i} variant="outline" className="px-3 py-1">
+                          {tool}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+              </div>
 
-                {/* Complexity & Education */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-2 block">Role Complexity</label>
-                    <div className="px-4 py-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-2 h-2 rounded-full ${
-                            parsedData.complexity === 'High' ? 'bg-red-500' : 'bg-yellow-500'
-                          }`}
-                        ></span>
-                        <p className="text-slate-900 font-medium">{parsedData.complexity}</p>
+              {/* Sidebar - Summary */}
+              <div className="space-y-6">
+                <div className="bg-white rounded-xl border border-slate-200 p-6">
+                  <h3 className="font-semibold text-slate-900 mb-4">Quick Summary</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="text-sm text-slate-600 mb-1">Experience Level</div>
+                      <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200">
+                        {parsedData.experienceLevel || 'Mid-Senior'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <div className="text-sm text-slate-600 mb-1">Domain</div>
+                      <Badge className="bg-purple-100 text-purple-700 border-purple-200">
+                        {parsedData.domain || 'Technology'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <div className="text-sm text-slate-600 mb-1">Skills to Assess</div>
+                      <div className="text-2xl font-bold text-slate-900">
+                        {parsedData.requiredSkills?.length || 0}
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-2 block">Education</label>
-                    <div className="px-4 py-3 bg-slate-50 rounded-lg border border-slate-200">
-                      <p className="text-slate-900 text-sm">{parsedData.educationLevel}</p>
-                    </div>
-                  </div>
                 </div>
 
-                {/* AI Explanation */}
-                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-indigo-900 mb-2 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    How AI Interpreted Your JD
-                  </h3>
-                  <p className="text-sm text-indigo-800">
-                    Based on the job description, this role requires <strong>advanced technical expertise</strong> with a focus on 
-                    full-stack development. The position emphasizes modern JavaScript frameworks, backend development with Node.js, 
-                    and database management. Candidates should have significant hands-on experience building scalable web applications.
+                {/* Soft Skills */}
+                {parsedData.softSkills?.length > 0 && (
+                  <div className="bg-white rounded-xl border border-slate-200 p-6">
+                    <h3 className="font-semibold text-slate-900 mb-4">Soft Skills</h3>
+                    <div className="space-y-2">
+                      {parsedData.softSkills.map((skill: string, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-sm text-slate-700">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>{skill}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
+                  <h3 className="font-semibold mb-4">Ready to generate?</h3>
+                  <p className="text-sm opacity-90 mb-6">
+                    AI will create custom MCQs, coding challenges, and subjective questions based on this JD.
                   </p>
+                  <Button
+                    className="w-full bg-white text-indigo-600 hover:bg-slate-100"
+                    onClick={handleGenerateAssessment}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 mr-2" />
+                        Generate Assessment
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="border-t border-slate-200 p-6 bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <FileText className="w-4 h-4" />
-                <span>Ready to generate assessment</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button variant="outline">
-                  Save Draft
-                </Button>
-                <Button 
-                  onClick={handleGenerateAssessment}
-                  className="bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Assessment
-                </Button>
               </div>
             </div>
           </div>

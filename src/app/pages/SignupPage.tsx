@@ -1,154 +1,265 @@
 import { useState } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Target } from 'lucide-react';
-import { UserRole } from '../App';
+import { Sparkles, Mail, Lock, User, Building, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
+import { authAPI } from '../services/api';
 
 interface SignupPageProps {
-  navigate: (page: string) => void;
-  onLogin: (role: UserRole) => void;
+  onNavigate: (page: string) => void;
 }
 
-export default function SignupPage({ navigate, onLogin }: SignupPageProps) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [company, setCompany] = useState('');
-  const [userType, setUserType] = useState<'recruiter' | 'candidate'>('recruiter');
+export default function SignupPage({ onNavigate }: SignupPageProps) {
+  const [role, setRole] = useState<'recruiter' | 'candidate'>('recruiter');
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    company: '',
+    phone: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ✅ Backend signup handler
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock signup
-    onLogin(userType);
+    setError('');
+
+    if (!formData.email || !formData.password || !formData.firstName) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log('📝 Registering user...', { ...formData, role });
+      
+      const response = await authAPI.register({
+        ...formData,
+        role
+      });
+      
+      console.log('✅ Registration success:', response.data);
+      setSuccess(true);
+      
+      // Auto login after 2 seconds
+      setTimeout(() => {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        onNavigate(role === 'recruiter' ? 'setup' : 'candidate-assessment');
+      }, 2000);
+      
+    } catch (err: any) {
+      console.error('❌ Signup error:', err);
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <Target className="w-6 h-6 text-white" />
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="w-10 h-10 text-emerald-600" />
           </div>
-          <span className="text-2xl font-semibold text-slate-900">HireRight AI</span>
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome to HireAI!</h2>
+          <p className="text-slate-600 mb-6">Your account has been created successfully.</p>
+          <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Redirecting to your dashboard...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-2xl">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center gap-2 mb-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+              <Sparkles className="w-7 h-7 text-white" />
+            </div>
+            <span className="text-3xl font-bold text-slate-900">HireAI</span>
+          </div>
+          <p className="text-slate-600">Create your account in seconds</p>
         </div>
 
         {/* Signup Card */}
-        <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Create your account</h1>
-          <p className="text-slate-600 mb-6">Start making smarter hiring decisions</p>
-
-          {/* User Type Toggle */}
-          <div className="flex gap-2 mb-6 bg-slate-100 p-1 rounded-lg">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl p-8">
+          {/* Role Selector */}
+          <div className="grid grid-cols-2 gap-4 mb-8">
             <button
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                userType === 'recruiter'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+              type="button"
+              onClick={() => setRole('recruiter')}
+              className={`p-6 rounded-xl border-2 transition-all ${
+                role === 'recruiter'
+                  ? 'border-indigo-600 bg-indigo-50'
+                  : 'border-slate-200 hover:border-slate-300'
               }`}
-              onClick={() => setUserType('recruiter')}
             >
-              Recruiter
+              <Building className={`w-8 h-8 mx-auto mb-3 ${role === 'recruiter' ? 'text-indigo-600' : 'text-slate-400'}`} />
+              <div className="font-semibold text-slate-900">Recruiter</div>
+              <div className="text-sm text-slate-600 mt-1">I'm hiring talent</div>
             </button>
             <button
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                userType === 'candidate'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+              type="button"
+              onClick={() => setRole('candidate')}
+              className={`p-6 rounded-xl border-2 transition-all ${
+                role === 'candidate'
+                  ? 'border-indigo-600 bg-indigo-50'
+                  : 'border-slate-200 hover:border-slate-300'
               }`}
-              onClick={() => setUserType('candidate')}
             >
-              Candidate
+              <User className={`w-8 h-8 mx-auto mb-3 ${role === 'candidate' ? 'text-indigo-600' : 'text-slate-400'}`} />
+              <div className="font-semibold text-slate-900">Candidate</div>
+              <div className="text-sm text-slate-600 mt-1">I'm looking for jobs</div>
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="mt-1"
-              />
-            </div>
-
-            {userType === 'recruiter' && (
-              <div>
-                <Label htmlFor="company">Company Name</Label>
-                <Input
-                  id="company"
-                  type="text"
-                  placeholder="Acme Inc."
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  required
-                  className="mt-1"
-                />
+          <form onSubmit={handleSignup} className="space-y-6">
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-800">{error}</p>
               </div>
             )}
 
+            {/* Name Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                  First Name *
+                </label>
+                <Input
+                  name="firstName"
+                  placeholder="John"
+                  value={formData.firstName}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                  Last Name
+                </label>
+                <Input
+                  name="lastName"
+                  placeholder="Doe"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            {/* Email */}
             <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="mt-1"
-              />
-            </div>
-
-            <div className="text-xs text-slate-600">
-              <label className="flex items-start gap-2">
-                <input type="checkbox" className="rounded border-slate-300 mt-0.5" required />
-                <span>
-                  I agree to the{' '}
-                  <a href="#" className="text-indigo-600 hover:text-indigo-700">
-                    Terms of Service
-                  </a>{' '}
-                  and{' '}
-                  <a href="#" className="text-indigo-600 hover:text-indigo-700">
-                    Privacy Policy
-                  </a>
-                </span>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">
+                Email Address *
               </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Input
+                  type="email"
+                  name="email"
+                  placeholder="you@company.com"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="pl-10"
+                  disabled={loading}
+                />
+              </div>
             </div>
 
-            <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">
-              Create Account
+            {/* Company (Recruiter only) */}
+            {role === 'recruiter' && (
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                  Company Name
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <Input
+                    name="company"
+                    placeholder="Acme Inc."
+                    value={formData.company}
+                    onChange={handleInputChange}
+                    className="pl-10"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Password */}
+            <div>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">
+                Password *
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Input
+                  type="password"
+                  name="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="pl-10"
+                  disabled={loading}
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Must be at least 6 characters</p>
+            </div>
+
+            {/* Terms */}
+            <label className="flex items-start gap-2 text-sm text-slate-600 cursor-pointer">
+              <input type="checkbox" className="rounded border-slate-300 mt-1" required />
+              <span>
+                I agree to the <button type="button" className="text-indigo-600 hover:underline">Terms of Service</button> and{' '}
+                <button type="button" className="text-indigo-600 hover:underline">Privacy Policy</button>
+              </span>
+            </label>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-6"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                'Create Account'
+              )}
             </Button>
           </form>
-
-          <p className="text-center text-sm text-slate-600 mt-6">
-            Already have an account?{' '}
-            <button
-              onClick={() => navigate('login')}
-              className="text-indigo-600 hover:text-indigo-700 font-medium"
-            >
-              Sign in
-            </button>
-          </p>
         </div>
+
+        {/* Login Link */}
+        <p className="text-center mt-6 text-sm text-slate-600">
+          Already have an account?{' '}
+          <button
+            onClick={() => onNavigate('login')}
+            className="text-indigo-600 hover:text-indigo-700 font-medium"
+          >
+            Sign in
+          </button>
+        </p>
       </div>
     </div>
   );

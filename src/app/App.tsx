@@ -41,11 +41,11 @@ export default function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'landing':
-        return <LandingPage navigate={navigate} />;
+        return <LandingPage onNavigate={navigate} />;
       case 'login':
-        return <LoginPage navigate={navigate} onLogin={handleLogin} />;
+        return <LoginPage onNavigate={navigate} onLogin={handleLogin} />;
       case 'signup':
-        return <SignupPage navigate={navigate} onLogin={handleLogin} />;
+        return <SignupPage onNavigate={navigate} />;
       case 'dashboard':
         return <RecruiterDashboard navigate={navigate} onLogout={handleLogout} />;
       case 'job-upload':
@@ -53,7 +53,7 @@ export default function App() {
       case 'assessment-builder':
         return <AssessmentBuilderPage navigate={navigate} onLogout={handleLogout} />;
       case 'candidate-assessment':
-        return <CandidateAssessmentPage navigate={navigate} onLogout={handleLogout} userRole={userRole} />;
+        return <CandidateAssessmentPage navigate={navigate} onLogout={handleLogout} />;
       case 'evaluation-results':
         return <EvaluationResultsPage navigate={navigate} onLogout={handleLogout} />;
       case 'candidate-analytics':
@@ -63,7 +63,7 @@ export default function App() {
       case 'settings':
         return <SettingsPage navigate={navigate} onLogout={handleLogout} />;
       default:
-        return <LandingPage navigate={navigate} />;
+        return <LandingPage onNavigate={navigate} />;
     }
   };
 

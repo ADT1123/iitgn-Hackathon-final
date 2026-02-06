@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import RecruiterLayout from '../components/RecruiterLayout';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -7,14 +7,16 @@ import {
   Search,
   Filter,
   Download,
-  Eye,
-  CheckCircle2,
-  AlertTriangle,
   TrendingUp,
-  Trophy,
+  Award,
   Users,
-  BarChart3,
-  ChevronDown
+  Target,
+  ChevronDown,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Eye,
+  Loader2
 } from 'lucide-react';
 
 interface EvaluationResultsPageProps {
@@ -22,152 +24,135 @@ interface EvaluationResultsPageProps {
   onLogout: () => void;
 }
 
-interface Candidate {
-  id: number;
-  name: string;
-  email: string;
-  score: number;
-  rank: number;
-  percentile: number;
-  status: 'Qualified' | 'Flagged' | 'Pending';
-  resumeMismatch: boolean;
-  completedAt: string;
-  skills: {
-    name: string;
-    score: number;
-  }[];
-}
-
 export default function EvaluationResultsPage({ navigate, onLogout }: EvaluationResultsPageProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'qualified' | 'flagged' | 'pending'>('all');
-  const [viewMode, setViewMode] = useState<'table' | 'leaderboard'>('table');
+  const [loading, setLoading] = useState(true);
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [sortBy, setSortBy] = useState('score');
 
-  const candidates: Candidate[] = [
-    {
-      id: 1,
-      name: 'Sarah Chen',
-      email: 'sarah.chen@email.com',
-      score: 94,
-      rank: 1,
-      percentile: 98,
-      status: 'Qualified',
-      resumeMismatch: false,
-      completedAt: '2026-02-05',
-      skills: [
-        { name: 'React', score: 96 },
-        { name: 'Node.js', score: 92 },
-        { name: 'JavaScript', score: 95 }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Michael Rodriguez',
-      email: 'michael.r@email.com',
-      score: 89,
-      rank: 2,
-      percentile: 92,
-      status: 'Qualified',
-      resumeMismatch: false,
-      completedAt: '2026-02-04',
-      skills: [
-        { name: 'React', score: 88 },
-        { name: 'Node.js', score: 91 },
-        { name: 'JavaScript', score: 87 }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Emily Watson',
-      email: 'emily.w@email.com',
-      score: 85,
-      rank: 3,
-      percentile: 87,
-      status: 'Qualified',
-      resumeMismatch: false,
-      completedAt: '2026-02-05',
-      skills: [
-        { name: 'React', score: 84 },
-        { name: 'Node.js', score: 87 },
-        { name: 'JavaScript', score: 83 }
-      ]
-    },
-    {
-      id: 4,
-      name: 'David Kim',
-      email: 'david.kim@email.com',
-      score: 78,
-      rank: 4,
-      percentile: 75,
-      status: 'Flagged',
-      resumeMismatch: true,
-      completedAt: '2026-02-03',
-      skills: [
-        { name: 'React', score: 75 },
-        { name: 'Node.js', score: 82 },
-        { name: 'JavaScript', score: 76 }
-      ]
-    },
-    {
-      id: 5,
-      name: 'Jessica Thompson',
-      email: 'jessica.t@email.com',
-      score: 82,
-      rank: 5,
-      percentile: 81,
-      status: 'Qualified',
-      resumeMismatch: false,
-      completedAt: '2026-02-04',
-      skills: [
-        { name: 'React', score: 80 },
-        { name: 'Node.js', score: 85 },
-        { name: 'JavaScript', score: 81 }
-      ]
-    },
-    {
-      id: 6,
-      name: 'Alex Morgan',
-      email: 'alex.m@email.com',
-      score: 72,
-      rank: 6,
-      percentile: 68,
-      status: 'Pending',
-      resumeMismatch: false,
-      completedAt: '2026-02-05',
-      skills: [
-        { name: 'React', score: 70 },
-        { name: 'Node.js', score: 74 },
-        { name: 'JavaScript', score: 72 }
-      ]
-    },
-  ];
+  // ✅ Load candidates
+  useEffect(() => {
+    loadCandidates();
+  }, []);
 
-  const filteredCandidates = candidates.filter(candidate => {
-    const matchesSearch = candidate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         candidate.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || candidate.status.toLowerCase() === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  const loadCandidates = async () => {
+    try {
+      setLoading(true);
+      
+      // Mock data - replace with real API
+      const mockCandidates = [
+        {
+          id: '1',
+          name: 'Sarah Chen',
+          email: 'sarah.chen@email.com',
+          score: 94,
+          rank: 1,
+          percentile: 98,
+          status: 'qualified',
+          completedAt: '2026-02-05',
+          resumeMismatch: false,
+          skills: { React: 96, 'Node.js': 92, JavaScript: 95 }
+        },
+        {
+          id: '2',
+          name: 'Michael Rodriguez',
+          email: 'michael.r@email.com',
+          score: 89,
+          rank: 2,
+          percentile: 95,
+          status: 'qualified',
+          completedAt: '2026-02-05',
+          resumeMismatch: false,
+          skills: { React: 90, 'Node.js': 88, JavaScript: 89 }
+        },
+        {
+          id: '3',
+          name: 'Priya Sharma',
+          email: 'priya.s@email.com',
+          score: 85,
+          rank: 3,
+          percentile: 90,
+          status: 'qualified',
+          completedAt: '2026-02-06',
+          resumeMismatch: false,
+          skills: { React: 88, 'Node.js': 82, JavaScript: 85 }
+        },
+        {
+          id: '4',
+          name: 'David Kim',
+          email: 'david.kim@email.com',
+          score: 72,
+          rank: 4,
+          percentile: 78,
+          status: 'review',
+          completedAt: '2026-02-06',
+          resumeMismatch: true,
+          skills: { React: 75, 'Node.js': 70, JavaScript: 71 }
+        },
+        {
+          id: '5',
+          name: 'Emma Watson',
+          email: 'emma.w@email.com',
+          score: 58,
+          rank: 5,
+          percentile: 45,
+          status: 'rejected',
+          completedAt: '2026-02-06',
+          resumeMismatch: true,
+          skills: { React: 60, 'Node.js': 55, JavaScript: 59 }
+        }
+      ];
+      
+      setCandidates(mockCandidates);
+      console.log('✅ Candidates loaded');
+    } catch (error) {
+      console.error('❌ Load candidates error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Qualified':
+      case 'qualified':
         return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case 'Flagged':
-        return 'bg-red-100 text-red-700 border-red-200';
-      case 'Pending':
+      case 'review':
         return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'rejected':
+        return 'bg-red-100 text-red-700 border-red-200';
       default:
         return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
-  const getRankBadge = (rank: number) => {
-    if (rank === 1) return '🥇';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
-    return rank;
+  const filteredCandidates = candidates
+    .filter(c => filterStatus === 'all' || c.status === filterStatus)
+    .filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy === 'score') return b.score - a.score;
+      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      return 0;
+    });
+
+  const stats = {
+    total: candidates.length,
+    qualified: candidates.filter(c => c.status === 'qualified').length,
+    avgScore: Math.round(candidates.reduce((sum, c) => sum + c.score, 0) / candidates.length)
   };
+
+  if (loading) {
+    return (
+      <RecruiterLayout navigate={navigate} onLogout={onLogout} currentPage="evaluation-results">
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+            <p className="text-slate-600">Loading results...</p>
+          </div>
+        </div>
+      </RecruiterLayout>
+    );
+  }
 
   return (
     <RecruiterLayout navigate={navigate} onLogout={onLogout} currentPage="evaluation-results">
@@ -175,301 +160,185 @@ export default function EvaluationResultsPage({ navigate, onLogout }: Evaluation
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Candidate Evaluation</h1>
-            <p className="text-slate-600 mt-1">Review and rank candidates based on assessment performance</p>
+            <h1 className="text-2xl font-bold text-slate-900">Candidate Leaderboard</h1>
+            <p className="text-slate-600 mt-1">Ranked by overall performance</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline">
-              <Filter className="w-4 h-4 mr-2" />
-              Filters
-            </Button>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
+          <Button className="bg-indigo-600 hover:bg-indigo-700">
+            <Download className="w-4 h-4 mr-2" />
+            Export Results
+          </Button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-indigo-600" />
-              </div>
+              <Users className="w-8 h-8 text-indigo-600" />
             </div>
-            <div className="text-2xl font-bold text-slate-900">{candidates.length}</div>
+            <div className="text-3xl font-bold text-slate-900 mb-1">{stats.total}</div>
             <div className="text-sm text-slate-600">Total Candidates</div>
           </div>
-
+          
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              </div>
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
             </div>
-            <div className="text-2xl font-bold text-slate-900">
-              {candidates.filter(c => c.status === 'Qualified').length}
-            </div>
+            <div className="text-3xl font-bold text-slate-900 mb-1">{stats.qualified}</div>
             <div className="text-sm text-slate-600">Qualified</div>
           </div>
-
+          
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
+              <Target className="w-8 h-8 text-purple-600" />
             </div>
-            <div className="text-2xl font-bold text-slate-900">
-              {candidates.filter(c => c.status === 'Flagged').length}
-            </div>
-            <div className="text-sm text-slate-600">Flagged</div>
+            <div className="text-3xl font-bold text-slate-900 mb-1">{stats.avgScore}%</div>
+            <div className="text-sm text-slate-600">Average Score</div>
           </div>
-
+          
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
-              </div>
+              <Award className="w-8 h-8 text-amber-600" />
             </div>
-            <div className="text-2xl font-bold text-slate-900">
-              {Math.round(candidates.reduce((sum, c) => sum + c.score, 0) / candidates.length)}
+            <div className="text-3xl font-bold text-slate-900 mb-1">
+              {candidates[0]?.score || 0}%
             </div>
-            <div className="text-sm text-slate-600">Avg Score</div>
+            <div className="text-sm text-slate-600">Top Score</div>
           </div>
         </div>
 
-        {/* Filters & Search */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <div className="flex items-center gap-4">
+        {/* Filters */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="flex flex-wrap items-center gap-4">
             {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <Input
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex-1 min-w-[300px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Input
+                  placeholder="Search candidates..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
 
             {/* Status Filter */}
-            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg">
-              <button
-                onClick={() => setFilterStatus('all')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filterStatus === 'all'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilterStatus('qualified')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filterStatus === 'qualified'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Qualified
-              </button>
-              <button
-                onClick={() => setFilterStatus('flagged')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filterStatus === 'flagged'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Flagged
-              </button>
-              <button
-                onClick={() => setFilterStatus('pending')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filterStatus === 'pending'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Pending
-              </button>
-            </div>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="all">All Status</option>
+              <option value="qualified">Qualified</option>
+              <option value="review">Under Review</option>
+              <option value="rejected">Rejected</option>
+            </select>
 
-            {/* View Toggle */}
-            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'table'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Table
-              </button>
-              <button
-                onClick={() => setViewMode('leaderboard')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === 'leaderboard'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Leaderboard
-              </button>
-            </div>
+            {/* Sort */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="score">Sort by Score</option>
+              <option value="name">Sort by Name</option>
+            </select>
           </div>
         </div>
 
-        {/* Results Table */}
-        {viewMode === 'table' && (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Rank</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Candidate</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Score</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Percentile</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Flags</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {filteredCandidates.map((candidate) => (
-                    <tr key={candidate.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl">{getRankBadge(candidate.rank)}</span>
-                          {candidate.rank <= 3 && (
-                            <Trophy className="w-4 h-4 text-amber-500" />
-                          )}
+        {/* Leaderboard Table */}
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="text-left p-4 text-sm font-semibold text-slate-900">Rank</th>
+                  <th className="text-left p-4 text-sm font-semibold text-slate-900">Candidate</th>
+                  <th className="text-left p-4 text-sm font-semibold text-slate-900">Score</th>
+                  <th className="text-left p-4 text-sm font-semibold text-slate-900">Percentile</th>
+                  <th className="text-left p-4 text-sm font-semibold text-slate-900">Status</th>
+                  <th className="text-left p-4 text-sm font-semibold text-slate-900">Flags</th>
+                  <th className="text-left p-4 text-sm font-semibold text-slate-900">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filteredCandidates.map((candidate, i) => (
+                  <tr key={candidate.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                          candidate.rank === 1 ? 'bg-amber-100 text-amber-700' :
+                          candidate.rank === 2 ? 'bg-slate-200 text-slate-700' :
+                          candidate.rank === 3 ? 'bg-orange-100 text-orange-700' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {candidate.rank}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="font-medium text-slate-900">{candidate.name}</div>
-                          <div className="text-sm text-slate-500">{candidate.email}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="text-xl font-bold text-slate-900">{candidate.score}</div>
-                          <div className="text-sm text-slate-500">/100</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4 text-emerald-600" />
-                          <span className="font-medium text-slate-900">{candidate.percentile}th</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge className={getStatusColor(candidate.status)}>
-                          {candidate.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        {candidate.resumeMismatch && (
-                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                            Resume Mismatch
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate('candidate-analytics')}
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Leaderboard View */}
-        {viewMode === 'leaderboard' && (
-          <div className="space-y-4">
-            {filteredCandidates.map((candidate, index) => (
-              <div
-                key={candidate.id}
-                className={`bg-white rounded-xl border-2 p-6 transition-all cursor-pointer hover:shadow-md ${
-                  index === 0
-                    ? 'border-amber-300 bg-gradient-to-r from-amber-50 to-white'
-                    : 'border-slate-200 hover:border-indigo-300'
-                }`}
-                onClick={() => navigate('candidate-analytics')}
-              >
-                <div className="flex items-center gap-6">
-                  {/* Rank Badge */}
-                  <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold ${
-                    index === 0
-                      ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white'
-                      : index === 1
-                      ? 'bg-gradient-to-br from-slate-300 to-slate-500 text-white'
-                      : index === 2
-                      ? 'bg-gradient-to-br from-amber-600 to-amber-800 text-white'
-                      : 'bg-slate-100 text-slate-700'
-                  }`}>
-                    {candidate.rank}
-                  </div>
-
-                  {/* Candidate Info */}
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900">{candidate.name}</h3>
-                        <p className="text-sm text-slate-600">{candidate.email}</p>
+                        {candidate.rank <= 3 && <Award className="w-4 h-4 text-amber-500" />}
                       </div>
-                      <Badge className={getStatusColor(candidate.status)}>
-                        {candidate.status}
-                      </Badge>
-                    </div>
-
-                    {/* Skills */}
-                    <div className="flex items-center gap-4 mt-3">
-                      {candidate.skills.map((skill) => (
-                        <div key={skill.name} className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-slate-600">{skill.name}:</span>
-                          <span className="text-xs font-bold text-indigo-600">{skill.score}%</span>
+                    </td>
+                    
+                    <td className="p-4">
+                      <div>
+                        <div className="font-medium text-slate-900">{candidate.name}</div>
+                        <div className="text-sm text-slate-600">{candidate.email}</div>
+                      </div>
+                    </td>
+                    
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl font-bold text-slate-900">{candidate.score}</div>
+                        <div className="flex-1">
+                          <div className="h-2 w-24 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-indigo-600 to-purple-600"
+                              style={{ width: `${candidate.score}%` }}
+                            ></div>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Score Circle */}
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-full border-4 border-indigo-600 flex items-center justify-center mb-2">
-                      <div className="text-2xl font-bold text-indigo-600">{candidate.score}</div>
-                    </div>
-                    <div className="text-xs text-slate-600">Score</div>
-                  </div>
-
-                  {/* Percentile */}
-                  <div className="text-center">
-                    <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-2">
-                      <div className="text-xl font-bold text-emerald-600">{candidate.percentile}th</div>
-                    </div>
-                    <div className="text-xs text-slate-600">Percentile</div>
-                  </div>
-                </div>
-              </div>
-            ))}
+                      </div>
+                    </td>
+                    
+                    <td className="p-4">
+                      <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200">
+                        {candidate.percentile}th
+                      </Badge>
+                    </td>
+                    
+                    <td className="p-4">
+                      <Badge className={getStatusColor(candidate.status)}>
+                        {candidate.status === 'qualified' && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                        {candidate.status === 'review' && <AlertTriangle className="w-3 h-3 mr-1" />}
+                        {candidate.status === 'rejected' && <XCircle className="w-3 h-3 mr-1" />}
+                        {candidate.status.charAt(0).toUpperCase() + candidate.status.slice(1)}
+                      </Badge>
+                    </td>
+                    
+                    <td className="p-4">
+                      {candidate.resumeMismatch && (
+                        <Badge className="bg-red-100 text-red-700 border-red-200">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Resume Mismatch
+                        </Badge>
+                      )}
+                    </td>
+                    
+                    <td className="p-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate('candidate-analytics')}
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        View Details
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
       </div>
     </RecruiterLayout>
   );

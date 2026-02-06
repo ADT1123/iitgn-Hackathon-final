@@ -1,360 +1,442 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
-import { Progress } from '../components/ui/progress';
+import { Badge } from '../components/ui/badge';
 import {
-  Target,
   Clock,
-  ChevronLeft,
-  ChevronRight,
   CheckCircle2,
-  Circle,
-  Save,
-  AlertCircle,
-  Code
+  Code,
+  MessageSquare,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  Shield,
+  Save
 } from 'lucide-react';
-import { UserRole } from '../App';
 
 interface CandidateAssessmentPageProps {
   navigate: (page: string) => void;
   onLogout: () => void;
-  userRole: UserRole;
 }
 
-export default function CandidateAssessmentPage({ navigate, onLogout, userRole }: CandidateAssessmentPageProps) {
-  const [currentSection, setCurrentSection] = useState<'objective' | 'subjective' | 'coding'>('objective');
+export default function CandidateAssessmentPage({ navigate, onLogout }: CandidateAssessmentPageProps) {
+  const [loading, setLoading] = useState(true);
+  const [currentSection, setCurrentSection] = useState('objective');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, any>>({});
   const [timeRemaining, setTimeRemaining] = useState(5400); // 90 minutes in seconds
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [textAnswer, setTextAnswer] = useState('');
-  const [codeAnswer, setCodeAnswer] = useState('');
+  const [assessment, setAssessment] = useState<any>(null);
+  const [autoSaving, setAutoSaving] = useState(false);
 
-  const objectiveQuestions = [
-    {
-      id: 1,
-      text: 'What is the primary purpose of React hooks?',
-      options: [
-        'To replace class components entirely',
-        'To manage state and side effects in functional components',
-        'To improve performance by 50%',
-        'To add CSS styling to components'
-      ],
-      skill: 'React'
-    },
-    {
-      id: 2,
-      text: 'Which of the following is NOT a valid HTTP method?',
-      options: ['GET', 'POST', 'FETCH', 'DELETE'],
-      skill: 'REST APIs'
-    },
-    {
-      id: 3,
-      text: 'What is the time complexity of searching in a balanced binary search tree?',
-      options: ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'],
-      skill: 'Data Structures'
-    },
-  ];
+  // ✅ Load assessment
+  useEffect(() => {
+    loadAssessment();
+  }, []);
 
-  const subjectiveQuestions = [
-    {
-      id: 4,
-      text: 'Explain the difference between authentication and authorization in web applications. Provide examples of when each is used.',
-      skill: 'Security',
-      minWords: 50
-    },
-    {
-      id: 5,
-      text: 'Describe your approach to optimizing database queries in a production environment. What tools and techniques would you use?',
-      skill: 'MongoDB',
-      minWords: 75
-    },
-  ];
+  // ✅ Timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 0) {
+          handleSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-  const codingQuestions = [
-    {
-      id: 6,
-      text: 'Implement a function to debounce API calls in JavaScript.',
-      description: 'Write a debounce function that delays invoking a function until after a specified wait time has elapsed since the last time it was invoked.',
-      skill: 'JavaScript',
-      starterCode: 'function debounce(func, wait) {\n  // Your code here\n}'
-    },
-    {
-      id: 7,
-      text: 'Create a REST API endpoint to handle user authentication.',
-      description: 'Implement a POST endpoint that accepts email and password, validates credentials, and returns a JWT token.',
-      skill: 'Node.js',
-      starterCode: 'app.post(\'/api/auth/login\', async (req, res) => {\n  // Your code here\n});'
-    },
-  ];
+    return () => clearInterval(timer);
+  }, []);
 
-  const getCurrentQuestion = () => {
-    if (currentSection === 'objective') {
-      return objectiveQuestions[currentQuestionIndex];
-    } else if (currentSection === 'subjective') {
-      return subjectiveQuestions[currentQuestionIndex];
-    } else {
-      return codingQuestions[currentQuestionIndex];
+  // ✅ Auto-save every 30 seconds
+  useEffect(() => {
+    const autoSave = setInterval(() => {
+      saveProgress();
+    }, 30000);
+
+    return () => clearInterval(autoSave);
+  }, [answers]);
+
+  const loadAssessment = async () => {
+    try {
+      setLoading(true);
+      // Mock assessment data - replace with real API call
+      const mockAssessment = {
+        title: 'Senior Full Stack Developer Assessment',
+        sections: {
+          objective: [
+            {
+              id: '1',
+              type: 'objective',
+              text: 'What is the primary purpose of React hooks?',
+              options: [
+                'To replace class components',
+                'To add state and lifecycle to functional components',
+                'To improve performance',
+                'To enable routing'
+              ],
+              skill: 'React',
+              difficulty: 'Medium'
+            },
+            {
+              id: '2',
+              type: 'objective',
+              text: 'Which of the following is NOT a valid HTTP method?',
+              options: ['GET', 'POST', 'FETCH', 'DELETE'],
+              skill: 'REST APIs',
+              difficulty: 'Easy'
+            }
+          ],
+          subjective: [
+            {
+              id: '3',
+              type: 'subjective',
+              text: 'Explain the difference between authentication and authorization in web applications.',
+              skill: 'Security',
+              difficulty: 'Medium',
+              maxWords: 200
+            }
+          ],
+          coding: [
+            {
+              id: '4',
+              type: 'coding',
+              text: 'Implement a function to debounce API calls in JavaScript.',
+              skill: 'JavaScript',
+              difficulty: 'Hard',
+              language: 'javascript',
+              testCases: [
+                { input: 'debounce(fn, 300)', expected: 'Function executes after 300ms delay' }
+              ]
+            }
+          ]
+        }
+      };
+      
+      setAssessment(mockAssessment);
+      console.log('✅ Assessment loaded');
+    } catch (error) {
+      console.error('❌ Load assessment error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getTotalQuestions = () => {
-    if (currentSection === 'objective') return objectiveQuestions.length;
-    if (currentSection === 'subjective') return subjectiveQuestions.length;
-    return codingQuestions.length;
+  const saveProgress = async () => {
+    try {
+      setAutoSaving(true);
+      // Save to backend
+      console.log('💾 Auto-saving progress...', answers);
+      await new Promise(resolve => setTimeout(resolve, 500)); // Mock delay
+      console.log('✅ Progress saved');
+    } catch (error) {
+      console.error('❌ Save progress error:', error);
+    } finally {
+      setAutoSaving(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      console.log('📤 Submitting assessment...', answers);
+      
+      // Submit to backend
+      // await applicationAPI.submitAssessment({ answers });
+      
+      alert('Assessment submitted successfully!');
+      navigate('evaluation-results');
+    } catch (error) {
+      console.error('❌ Submit error:', error);
+      alert('Failed to submit assessment');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const progress = ((currentQuestionIndex + 1) / getTotalQuestions()) * 100;
-  const currentQuestion = getCurrentQuestion();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">Loading assessment...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const sections = assessment?.sections || {};
+  const currentQuestions = sections[currentSection] || [];
+  const currentQuestion = currentQuestions[currentQuestionIndex];
+  const totalQuestions = Object.values(sections).flat().length;
+  const answeredCount = Object.keys(answers).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <Target className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-slate-900">Senior Full Stack Developer Assessment</h1>
-              <p className="text-sm text-slate-600">Section: {currentSection.charAt(0).toUpperCase() + currentSection.slice(1)}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-lg">
-              <Clock className="w-5 h-5 text-slate-600" />
-              <span className="font-mono font-semibold text-slate-900">{formatTime(timeRemaining)}</span>
-            </div>
-            <Button variant="outline" size="sm">
-              <Save className="w-4 h-4 mr-2" />
-              Auto-saving
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Progress Bar */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-2 text-sm">
-            <span className="text-slate-600">Question {currentQuestionIndex + 1} of {getTotalQuestions()}</span>
-            <span className="text-slate-600">{Math.round(progress)}% Complete</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-      </div>
-
-      {/* Section Tabs */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex gap-1">
-            <button
-              onClick={() => {
-                setCurrentSection('objective');
-                setCurrentQuestionIndex(0);
-              }}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                currentSection === 'objective'
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Objective ({objectiveQuestions.length})
-            </button>
-            <button
-              onClick={() => {
-                setCurrentSection('subjective');
-                setCurrentQuestionIndex(0);
-              }}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                currentSection === 'subjective'
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Subjective ({subjectiveQuestions.length})
-            </button>
-            <button
-              onClick={() => {
-                setCurrentSection('coding');
-                setCurrentQuestionIndex(0);
-              }}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                currentSection === 'coding'
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Coding ({codingQuestions.length})
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <main className="flex-1 py-8">
-        <div className="max-w-4xl mx-auto px-6">
-          {/* Question Card */}
-          <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-sm mb-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-semibold flex-shrink-0">
-                {currentQuestionIndex + 1}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
-                    {currentQuestion.skill}
-                  </span>
-                  <span className="text-xs text-slate-500">• Required</span>
-                </div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-4">
-                  {currentQuestion.text}
-                </h2>
-
-                {/* Objective - Multiple Choice */}
-                {currentSection === 'objective' && 'options' in currentQuestion && (
-                  <div className="space-y-3 mt-6">
-                    {currentQuestion.options.map((option, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setSelectedAnswer(option)}
-                        className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                          selectedAnswer === option
-                            ? 'border-indigo-500 bg-indigo-50'
-                            : 'border-slate-200 hover:border-slate-300 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {selectedAnswer === option ? (
-                            <CheckCircle2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
-                          ) : (
-                            <Circle className="w-5 h-5 text-slate-400 flex-shrink-0" />
-                          )}
-                          <span className="text-slate-900">{option}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Subjective - Text Answer */}
-                {currentSection === 'subjective' && (
-                  <div className="mt-6">
-                    {'minWords' in currentQuestion && (
-                      <p className="text-sm text-slate-600 mb-3">
-                        Minimum {currentQuestion.minWords} words required
-                      </p>
-                    )}
-                    <Textarea
-                      placeholder="Type your answer here..."
-                      value={textAnswer}
-                      onChange={(e) => setTextAnswer(e.target.value)}
-                      className="min-h-[300px] text-base"
-                    />
-                    <p className="text-sm text-slate-500 mt-2">
-                      {textAnswer.split(/\s+/).filter(w => w.length > 0).length} words
-                    </p>
-                  </div>
-                )}
-
-                {/* Coding - Code Editor */}
-                {currentSection === 'coding' && (
-                  <div className="mt-6">
-                    {'description' in currentQuestion && (
-                      <p className="text-slate-600 mb-4">{currentQuestion.description}</p>
-                    )}
-                    <div className="bg-slate-900 rounded-lg overflow-hidden border border-slate-700">
-                      <div className="bg-slate-800 px-4 py-2 flex items-center justify-between border-b border-slate-700">
-                        <div className="flex items-center gap-2">
-                          <Code className="w-4 h-4 text-slate-400" />
-                          <span className="text-sm text-slate-300">solution.js</span>
-                        </div>
-                        <select className="bg-slate-700 text-slate-300 text-xs px-2 py-1 rounded border-none">
-                          <option>JavaScript</option>
-                          <option>Python</option>
-                          <option>Java</option>
-                        </select>
-                      </div>
-                      <Textarea
-                        value={codeAnswer || ('starterCode' in currentQuestion ? currentQuestion.starterCode : '')}
-                        onChange={(e) => setCodeAnswer(e.target.value)}
-                        className="min-h-[400px] bg-slate-900 text-slate-100 font-mono text-sm border-none focus:ring-0 resize-none"
-                        placeholder="// Write your code here..."
-                      />
-                    </div>
-                    <div className="mt-4 flex items-center gap-3">
-                      <Button variant="outline" size="sm">
-                        Run Tests
-                      </Button>
-                      <span className="text-sm text-slate-600">All test cases will run on submission</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation */}
+    <div className="min-h-screen bg-slate-50">
+      {/* Top Bar */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Button
-              variant="outline"
-              onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
-              disabled={currentQuestionIndex === 0}
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Previous
-            </Button>
-            <div className="flex items-center gap-2">
-              {Array.from({ length: getTotalQuestions() }).map((_, index) => (
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">{assessment.title}</h1>
+              <p className="text-sm text-slate-600">
+                Question {answeredCount + 1} of {totalQuestions}
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              {/* Auto-save indicator */}
+              {autoSaving && (
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Saving...</span>
+                </div>
+              )}
+              
+              {/* Timer */}
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+                timeRemaining < 600 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
+              }`}>
+                <Clock className="w-5 h-5" />
+                <span className="font-mono font-bold text-lg">{formatTime(timeRemaining)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Section Tabs */}
+            <div className="bg-white rounded-xl border border-slate-200 p-2 flex gap-2">
+              {Object.entries(sections).map(([key, questions]: [string, any]) => (
                 <button
-                  key={index}
-                  onClick={() => setCurrentQuestionIndex(index)}
-                  className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                    index === currentQuestionIndex
+                  key={key}
+                  onClick={() => {
+                    setCurrentSection(key);
+                    setCurrentQuestionIndex(0);
+                  }}
+                  className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                    currentSection === key
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                      : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  {index + 1}
+                  <div className="flex items-center justify-center gap-2">
+                    {key === 'objective' && <CheckCircle2 className="w-4 h-4" />}
+                    {key === 'subjective' && <MessageSquare className="w-4 h-4" />}
+                    {key === 'coding' && <Code className="w-4 h-4" />}
+                    <span className="capitalize">{key}</span>
+                    <Badge variant="outline" className={currentSection === key ? 'bg-white/20 text-white border-white/30' : ''}>
+                      {questions.length}
+                    </Badge>
+                  </div>
                 </button>
               ))}
             </div>
-            {currentQuestionIndex < getTotalQuestions() - 1 ? (
-              <Button
-                onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                Next
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </Button>
-            ) : (
-              <Button className="bg-emerald-600 hover:bg-emerald-700">
-                Submit Section
-                <CheckCircle2 className="w-4 h-4 ml-2" />
-              </Button>
+
+            {/* Question Card */}
+            {currentQuestion && (
+              <div className="bg-white rounded-xl border border-slate-200 p-8">
+                {/* Question Header */}
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Badge variant="outline">{currentQuestion.skill}</Badge>
+                      <Badge className={
+                        currentQuestion.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700' :
+                        currentQuestion.difficulty === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                        'bg-red-100 text-red-700'
+                      }>
+                        {currentQuestion.difficulty}
+                      </Badge>
+                    </div>
+                    <h2 className="text-xl font-semibold text-slate-900">
+                      {currentQuestion.text}
+                    </h2>
+                  </div>
+                </div>
+
+                {/* Question Content */}
+                <div className="space-y-4">
+                  {/* Objective - MCQ */}
+                  {currentQuestion.type === 'objective' && (
+                    <div className="space-y-3">
+                      {currentQuestion.options.map((option: string, i: number) => (
+                        <button
+                          key={i}
+                          onClick={() => setAnswers({ ...answers, [currentQuestion.id]: option })}
+                          className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                            answers[currentQuestion.id] === option
+                              ? 'border-indigo-600 bg-indigo-50'
+                              : 'border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                              answers[currentQuestion.id] === option
+                                ? 'border-indigo-600 bg-indigo-600'
+                                : 'border-slate-300'
+                            }`}>
+                              {answers[currentQuestion.id] === option && (
+                                <CheckCircle2 className="w-4 h-4 text-white" />
+                              )}
+                            </div>
+                            <span className="text-slate-900">{option}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Subjective - Text Area */}
+                  {currentQuestion.type === 'subjective' && (
+                    <div>
+                      <textarea
+                        placeholder="Type your answer here..."
+                        value={answers[currentQuestion.id] || ''}
+                        onChange={(e) => setAnswers({ ...answers, [currentQuestion.id]: e.target.value })}
+                        className="w-full h-64 p-4 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                      />
+                      <p className="text-xs text-slate-500 mt-2">
+                        {(answers[currentQuestion.id] || '').split(' ').filter(Boolean).length} / {currentQuestion.maxWords} words
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Coding - Code Editor */}
+                  {currentQuestion.type === 'coding' && (
+                    <div className="space-y-4">
+                      <div className="bg-slate-900 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <Badge className="bg-slate-800 text-slate-300">
+                            {currentQuestion.language}
+                          </Badge>
+                          <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                            <Save className="w-4 h-4 mr-1" />
+                            Save Code
+                          </Button>
+                        </div>
+                        <textarea
+                          placeholder="// Write your code here..."
+                          value={answers[currentQuestion.id] || ''}
+                          onChange={(e) => setAnswers({ ...answers, [currentQuestion.id]: e.target.value })}
+                          className="w-full h-96 bg-transparent text-slate-100 font-mono text-sm border-none focus:outline-none resize-none"
+                          style={{ fontFamily: 'Monaco, Consolas, monospace' }}
+                        />
+                      </div>
+                      <Button className="bg-emerald-600 hover:bg-emerald-700">
+                        <Code className="w-4 h-4 mr-2" />
+                        Run Code
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
+
+            {/* Navigation */}
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (currentQuestionIndex > 0) {
+                    setCurrentQuestionIndex(currentQuestionIndex - 1);
+                  }
+                }}
+                disabled={currentQuestionIndex === 0}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Previous
+              </Button>
+
+              {currentQuestionIndex < currentQuestions.length - 1 ? (
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                  onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)}
+                >
+                  Next
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleSubmit}
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Submit Assessment
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* Anti-cheat Notice */}
-          <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-amber-900 mb-1">Assessment Monitoring Active</p>
-              <p className="text-xs text-amber-800">
-                This assessment tracks time spent on each question and monitors for unusual patterns. 
-                Please ensure you complete all questions honestly.
-              </p>
+          {/* Sidebar - Progress */}
+          <div className="space-y-6">
+            {/* Progress Card */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 sticky top-24">
+              <h3 className="font-semibold text-slate-900 mb-4">Progress</h3>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-slate-600">Completed</span>
+                    <span className="font-bold text-slate-900">{answeredCount}/{totalQuestions}</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all"
+                      style={{ width: `${(answeredCount / totalQuestions) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Section Progress */}
+                {Object.entries(sections).map(([key, questions]: [string, any]) => {
+                  const sectionAnswered = questions.filter((q: any) => answers[q.id]).length;
+                  return (
+                    <div key={key}>
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-slate-600 capitalize">{key}</span>
+                        <span className="text-slate-900">{sectionAnswered}/{questions.length}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${
+                            key === 'objective' ? 'bg-indigo-600' :
+                            key === 'subjective' ? 'bg-emerald-600' :
+                            'bg-purple-600'
+                          }`}
+                          style={{ width: `${(sectionAnswered / questions.length) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Anti-Cheat Warning */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <Shield className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-amber-900 text-sm mb-1">Proctored Assessment</h4>
+                  <p className="text-xs text-amber-800">
+                    Your activity is being monitored. Switching tabs may be flagged.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

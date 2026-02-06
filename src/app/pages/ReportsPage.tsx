@@ -1,17 +1,21 @@
+import { useState, useEffect } from 'react';
 import RecruiterLayout from '../components/RecruiterLayout';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import {
   Download,
-  FileDown,
   FileText,
+  FileSpreadsheet,
+  FileCode,
   Calendar,
-  CheckCircle2,
-  Clock,
   Users,
-  BarChart3,
-  Settings
+  TrendingUp,
+  CheckCircle2,
+  Loader2,
+  Filter,
+  RefreshCw
 } from 'lucide-react';
+import { jobAPI, applicationAPI } from '../services/api';
 
 interface ReportsPageProps {
   navigate: (page: string) => void;
@@ -19,102 +23,93 @@ interface ReportsPageProps {
 }
 
 export default function ReportsPage({ navigate, onLogout }: ReportsPageProps) {
-  const reports = [
-    {
-      id: 1,
-      name: 'Senior Full Stack Developer - Complete Assessment Report',
-      type: 'Assessment Report',
-      generatedDate: '2026-02-05',
-      candidates: 24,
-      status: 'Ready',
-      format: 'PDF'
-    },
-    {
-      id: 2,
-      name: 'Backend Developer - Candidate Rankings',
-      type: 'Rankings Report',
-      generatedDate: '2026-02-03',
-      candidates: 31,
-      status: 'Ready',
-      format: 'CSV'
-    },
-    {
-      id: 3,
-      name: 'DevOps Engineer - Skill Analysis',
-      type: 'Analytics Report',
-      generatedDate: '2026-02-01',
-      candidates: 15,
-      status: 'Ready',
-      format: 'PDF'
-    },
-    {
-      id: 4,
-      name: 'Full Stack Engineer - February Batch',
-      type: 'Assessment Report',
-      generatedDate: '2026-02-04',
-      candidates: 18,
-      status: 'Ready',
-      format: 'XLSX'
-    },
-  ];
+  const [loading, setLoading] = useState(false);
+  const [reports, setReports] = useState<any[]>([]);
+  const [selectedJob, setSelectedJob] = useState('all');
+  const [jobs, setJobs] = useState<any[]>([]);
 
-  const quickExports = [
-    {
-      title: 'All Candidates Data',
-      description: 'Export complete candidate list with scores',
-      icon: Users,
-      format: 'CSV',
-      color: 'indigo'
-    },
-    {
-      title: 'Qualified Candidates',
-      description: 'Export only qualified candidates above threshold',
-      icon: CheckCircle2,
-      format: 'PDF',
-      color: 'emerald'
-    },
-    {
-      title: 'Skill Distribution',
-      description: 'Export skill-wise performance metrics',
-      icon: BarChart3,
-      format: 'XLSX',
-      color: 'purple'
-    },
-    {
-      title: 'Assessment Summary',
-      description: 'Export high-level assessment statistics',
-      icon: FileText,
-      format: 'PDF',
-      color: 'amber'
-    },
-  ];
+  useEffect(() => {
+    loadJobs();
+    loadReports();
+  }, []);
 
-  const atsIntegrations = [
-    {
-      name: 'Greenhouse',
-      logo: '🏢',
-      status: 'Connected',
-      lastSync: '2 hours ago'
-    },
-    {
-      name: 'Lever',
-      logo: '⚙️',
-      status: 'Not Connected',
-      lastSync: null
-    },
-    {
-      name: 'Workday',
-      logo: '💼',
-      status: 'Connected',
-      lastSync: '1 day ago'
-    },
-    {
-      name: 'BambooHR',
-      logo: '🎋',
-      status: 'Not Connected',
-      lastSync: null
-    },
-  ];
+  const loadJobs = async () => {
+    try {
+      const response = await jobAPI.getJobs();
+      setJobs(response.data.data || []);
+    } catch (error) {
+      console.error('❌ Load jobs error:', error);
+    }
+  };
+
+  const loadReports = () => {
+    // Mock reports data
+    const mockReports = [
+      {
+        id: '1',
+        title: 'Senior Full Stack Developer - Complete Assessment Report',
+        job: 'Senior Full Stack Developer',
+        type: 'Complete',
+        candidates: 142,
+        date: '2026-02-06',
+        status: 'Ready'
+      },
+      {
+        id: '2',
+        title: 'Frontend Developer - Skills Analysis',
+        job: 'Frontend Developer',
+        type: 'Skills',
+        candidates: 89,
+        date: '2026-02-05',
+        status: 'Ready'
+      },
+      {
+        id: '3',
+        title: 'Backend Engineer - Code Quality Report',
+        job: 'Backend Engineer',
+        type: 'Coding',
+        candidates: 67,
+        date: '2026-02-04',
+        status: 'Ready'
+      }
+    ];
+    setReports(mockReports);
+  };
+
+  // ✅ Generate new report
+  const generateReport = async (type: string) => {
+    try {
+      setLoading(true);
+      console.log('📊 Generating report...', { type, job: selectedJob });
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      alert(`${type} report generated successfully!`);
+      loadReports();
+    } catch (error) {
+      console.error('❌ Generate report error:', error);
+      alert('Failed to generate report');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Download report
+  const downloadReport = async (reportId: string, format: string) => {
+    try {
+      setLoading(true);
+      console.log('⬇️ Downloading report...', { reportId, format });
+      
+      // Simulate download
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      alert(`Report downloaded as ${format.toUpperCase()}`);
+    } catch (error) {
+      console.error('❌ Download error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <RecruiterLayout navigate={navigate} onLogout={onLogout} currentPage="reports">
@@ -122,205 +117,203 @@ export default function ReportsPage({ navigate, onLogout }: ReportsPageProps) {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Reports & Exports</h1>
-            <p className="text-slate-600 mt-1">Generate and download assessment reports</p>
+            <h1 className="text-2xl font-bold text-slate-900">Reports & Analytics</h1>
+            <p className="text-slate-600 mt-1">Export candidate data and generate insights</p>
           </div>
-          <Button className="bg-indigo-600 hover:bg-indigo-700">
-            <FileDown className="w-4 h-4 mr-2" />
-            Generate New Report
+          <Button
+            className="bg-indigo-600 hover:bg-indigo-700"
+            onClick={() => generateReport('Complete')}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Generate New Report
+              </>
+            )}
           </Button>
         </div>
 
-        {/* Quick Export Cards */}
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900 mb-4">Quick Exports</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickExports.map((item) => {
-              const Icon = item.icon;
-              const colorClasses = {
-                indigo: 'bg-indigo-100 text-indigo-600',
-                emerald: 'bg-emerald-100 text-emerald-600',
-                purple: 'bg-purple-100 text-purple-600',
-                amber: 'bg-amber-100 text-amber-600'
-              }[item.color];
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <FileText className="w-8 h-8 text-indigo-600" />
+            </div>
+            <div className="text-3xl font-bold text-slate-900 mb-1">{reports.length}</div>
+            <div className="text-sm text-slate-600">Total Reports</div>
+          </div>
 
-              return (
-                <button
-                  key={item.title}
-                  className="bg-white rounded-xl border border-slate-200 p-6 hover:border-indigo-300 hover:shadow-sm transition-all text-left"
-                >
-                  <div className={`w-12 h-12 ${colorClasses} rounded-lg flex items-center justify-center mb-4`}>
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <h3 className="font-semibold text-slate-900 mb-1">{item.title}</h3>
-                  <p className="text-sm text-slate-600 mb-3">{item.description}</p>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" className="text-xs">
-                      <Download className="w-3 h-3 mr-1" />
-                      Export {item.format}
-                    </Button>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Users className="w-8 h-8 text-emerald-600" />
+            </div>
+            <div className="text-3xl font-bold text-slate-900 mb-1">298</div>
+            <div className="text-sm text-slate-600">Total Candidates</div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Download className="w-8 h-8 text-purple-600" />
+            </div>
+            <div className="text-3xl font-bold text-slate-900 mb-1">45</div>
+            <div className="text-sm text-slate-600">Downloads This Month</div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <TrendingUp className="w-8 h-8 text-amber-600" />
+            </div>
+            <div className="text-3xl font-bold text-slate-900 mb-1">82%</div>
+            <div className="text-sm text-slate-600">Avg Completion Rate</div>
           </div>
         </div>
 
-        {/* Generated Reports */}
-        <div className="bg-white rounded-xl border border-slate-200">
-          <div className="p-6 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900">Generated Reports</h2>
-            <p className="text-sm text-slate-600 mt-1">Download previously generated reports</p>
+        {/* Generate Reports Section */}
+        <div className="bg-white rounded-xl border border-slate-200 p-8">
+          <h2 className="text-xl font-bold text-slate-900 mb-6">Generate New Report</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            {[
+              {
+                type: 'Complete Assessment Report',
+                icon: FileText,
+                desc: 'Full candidate analysis with scores, rankings, and AI insights',
+                color: 'indigo'
+              },
+              {
+                type: 'Skills Breakdown',
+                icon: TrendingUp,
+                desc: 'Detailed skill-wise performance analysis',
+                color: 'emerald'
+              },
+              {
+                type: 'Code Quality Report',
+                icon: FileCode,
+                desc: 'Coding challenge results and plagiarism checks',
+                color: 'purple'
+              }
+            ].map((report, i) => (
+              <button
+                key={i}
+                onClick={() => generateReport(report.type)}
+                className="bg-slate-50 hover:bg-slate-100 rounded-xl border-2 border-slate-200 hover:border-indigo-300 p-6 text-left transition-all"
+              >
+                <report.icon className={`w-10 h-10 text-${report.color}-600 mb-4`} />
+                <h3 className="font-semibold text-slate-900 mb-2">{report.type}</h3>
+                <p className="text-sm text-slate-600">{report.desc}</p>
+              </button>
+            ))}
           </div>
-          <div className="divide-y divide-slate-200">
+
+          {/* Job Filter */}
+          <div className="flex items-center gap-4">
+            <Filter className="w-5 h-5 text-slate-400" />
+            <select
+              value={selectedJob}
+              onChange={(e) => setSelectedJob(e.target.value)}
+              className="flex-1 px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="all">All Assessments</option>
+              {jobs.map((job) => (
+                <option key={job._id} value={job._id}>
+                  {job.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Existing Reports */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-xl font-bold text-slate-900 mb-6">Recent Reports</h2>
+          
+          <div className="space-y-4">
             {reports.map((report) => (
               <div
                 key={report.id}
-                className="p-6 hover:bg-slate-50 transition-colors"
+                className="flex items-center justify-between p-6 bg-slate-50 rounded-xl border border-slate-200 hover:border-indigo-300 transition-all"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-6 h-6 text-slate-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-slate-900 mb-1">{report.name}</h3>
-                      <div className="flex items-center gap-4 text-sm text-slate-600">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {report.generatedDate}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          {report.candidates} candidates
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {report.type}
-                        </Badge>
-                      </div>
-                    </div>
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-indigo-600" />
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                      {report.status}
-                    </Badge>
-                    <Button size="sm" variant="outline">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download {report.format}
-                    </Button>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-slate-900 mb-1">{report.title}</h3>
+                    <div className="flex items-center gap-4 text-sm text-slate-600">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {new Date(report.date).toLocaleDateString()}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        {report.candidates} candidates
+                      </span>
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        {report.status}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* ATS Integrations */}
-        <div className="bg-white rounded-xl border border-slate-200">
-          <div className="p-6 border-b border-slate-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">ATS Integrations</h2>
-                <p className="text-sm text-slate-600 mt-1">Sync assessment data with your applicant tracking system</p>
-              </div>
-              <Button variant="outline" size="sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Manage Integrations
-              </Button>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
-            {atsIntegrations.map((integration) => (
-              <div
-                key={integration.name}
-                className="border border-slate-200 rounded-lg p-4 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-2xl">
-                    {integration.logo}
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-slate-900">{integration.name}</h3>
-                    {integration.status === 'Connected' ? (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                        <span>Last sync: {integration.lastSync}</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <div className="w-2 h-2 bg-slate-300 rounded-full"></div>
-                        <span>Not connected</span>
-                      </div>
-                    )}
-                  </div>
+                {/* Download Buttons */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadReport(report.id, 'pdf')}
+                  >
+                    <FileText className="w-4 h-4 mr-1" />
+                    PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadReport(report.id, 'csv')}
+                  >
+                    <FileSpreadsheet className="w-4 h-4 mr-1" />
+                    CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadReport(report.id, 'json')}
+                  >
+                    <FileCode className="w-4 h-4 mr-1" />
+                    JSON
+                  </Button>
                 </div>
-                {integration.status === 'Connected' ? (
-                  <Button size="sm" variant="outline">
-                    Sync Now
-                  </Button>
-                ) : (
-                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
-                    Connect
-                  </Button>
-                )}
               </div>
             ))}
           </div>
         </div>
 
         {/* Export Options */}
-        <div className="bg-slate-50 rounded-xl border border-slate-200 p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Custom Export</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 block">Assessment</label>
-              <select className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                <option>Senior Full Stack Developer</option>
-                <option>Backend Developer</option>
-                <option>DevOps Engineer</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 block">Format</label>
-              <select className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                <option>PDF</option>
-                <option>CSV</option>
-                <option>XLSX</option>
-                <option>JSON</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 block">Include</label>
-              <select className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm">
-                <option>All Candidates</option>
-                <option>Qualified Only</option>
-                <option>Top 10</option>
-                <option>Flagged Only</option>
-              </select>
-            </div>
-          </div>
-          <Button className="bg-indigo-600 hover:bg-indigo-700">
-            <Download className="w-4 h-4 mr-2" />
-            Generate Custom Report
-          </Button>
-        </div>
-
-        {/* Schedule Reports */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Clock className="w-6 h-6 text-indigo-600" />
-            </div>
+        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-8 text-white">
+          <div className="flex items-start justify-between">
             <div className="flex-1">
-              <h3 className="font-semibold text-slate-900 mb-2">Scheduled Reports</h3>
-              <p className="text-sm text-slate-600 mb-4">
-                Set up automatic report generation and delivery to your email or integrated systems
+              <h2 className="text-2xl font-bold mb-3">Bulk Export</h2>
+              <p className="text-white/90 mb-6">
+                Export all candidate data from multiple assessments in one go
               </p>
-              <Button variant="outline" size="sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Configure Schedule
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button className="bg-white text-indigo-600 hover:bg-slate-100">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export All Data
+                </Button>
+                <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                  Schedule Export
+                </Button>
+              </div>
+            </div>
+            <div className="w-32 h-32 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+              <Download className="w-16 h-16 text-white/80" />
             </div>
           </div>
         </div>
