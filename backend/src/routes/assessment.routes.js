@@ -1,27 +1,15 @@
-// src/routes/assessment.routes.js
 const express = require('express');
 const router = express.Router();
-const Assessment = require('../models/Assessment');
 const { protect } = require('../middleware/auth.middleware');
+const assessmentController = require('../controllers/assessment.controller');
 
-router.get('/:jobId', protect, async (req, res, next) => {
-  try {
-    const assessment = await Assessment.findOne({ jobId: req.params.jobId });
-    
-    if (!assessment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Assessment not found'
-      });
-    }
+// All routes require authentication
+router.use(protect);
 
-    res.status(200).json({
-      success: true,
-      data: assessment
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+router.get('/', assessmentController.getAssessments);
+router.get('/:id', assessmentController.getAssessmentById);
+router.post('/generate', assessmentController.generateQuestions);
+router.put('/:id', assessmentController.updateAssessment);
+router.delete('/:id', assessmentController.deleteAssessment);
 
 module.exports = router;

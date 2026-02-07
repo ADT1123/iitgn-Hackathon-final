@@ -39,7 +39,7 @@ export const JobDetailsPage: React.FC = () => {
 
   const handleCreateAssessment = async () => {
     try {
-      const response = await assessmentAPI.createAssessment({ jobId: id });
+      const response = await assessmentAPI.getAssessments({ jobId: id });
       navigate(`/assessments/${response.data.data._id}`);
     } catch (error) {
       console.error('Failed to create assessment:', error);

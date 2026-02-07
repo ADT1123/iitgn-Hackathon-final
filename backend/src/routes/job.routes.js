@@ -1,25 +1,30 @@
-// src/routes/job.routes.js
 const express = require('express');
 const router = express.Router();
-const {
-  createJob,
-  generateAssessment,
-  getJobs,
-  getJobById,
-  updateJob,
-  deleteJob
-} = require('../controllers/job.controller');
-const { protect, authorize } = require('../middleware/auth.middleware');
+const { protect } = require('../middleware/auth.middleware');
+const jobController = require('../controllers/job.controller');
 
-router.route('/')
-  .get(protect, getJobs)
-  .post(protect, authorize('recruiter', 'admin'), createJob);
+// Verify controller methods exist
+console.log('Job Controller methods:', Object.keys(jobController));
 
-router.route('/:id')
-  .get(protect, getJobById)
-  .put(protect, authorize('recruiter', 'admin'), updateJob)
-  .delete(protect, authorize('recruiter', 'admin'), deleteJob);
+// All routes require authentication
+router.use(protect);
 
-router.post('/:jobId/generate-assessment', protect, authorize('recruiter', 'admin'), generateAssessment);
+// Parse JD route - MUST BE BEFORE /:id
+router.post('/parse-jd', (req, res, next) => {
+  console.log('Parse JD route hit');
+  if (!jobController.parseJD) {
+    console.error('parseJD method not found in controller!');
+    return res.status(500).json({ success: false, message: 'parseJD not implemented' });
+  }
+  jobController.parseJD(req, res, next);
+});
+
+// Other routes
+router.post('/', jobController.createJob);
+router.get('/', jobController.getJobs);
+router.get('/stats', jobController.getStats);
+router.get('/:id', jobController.getJobById);
+router.put('/:id', jobController.updateJob);
+router.delete('/:id', jobController.deleteJob);
 
 module.exports = router;

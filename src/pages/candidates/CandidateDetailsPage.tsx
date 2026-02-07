@@ -15,7 +15,10 @@ import {
   Award,
   TrendingUp,
   TrendingDown,
-  Loader2
+  Loader2,
+  Brain,
+  Target,
+  AlertCircle
 } from 'lucide-react';
 import {
   RadarChart,
@@ -86,6 +89,16 @@ export const CandidateDetailsPage: React.FC = () => {
       console.error('Download failed:', error);
       alert('Failed to download report');
     }
+  };
+
+  const getRecommendationBadge = (recommendation: string) => {
+    const variants: any = {
+      'strong-hire': 'success',
+      'hire': 'info',
+      'maybe': 'warning',
+      'no-hire': 'danger'
+    };
+    return variants[recommendation] || 'default';
   };
 
   if (loading) {
@@ -161,10 +174,14 @@ export const CandidateDetailsPage: React.FC = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-5 gap-6">
           <Card>
             <p className="text-sm text-slate-600 mb-1">Overall Score</p>
             <p className="text-3xl font-bold text-blue-600">{application.totalScore}%</p>
+          </Card>
+          <Card>
+            <p className="text-sm text-slate-600 mb-1">Weighted Score</p>
+            <p className="text-3xl font-bold text-purple-600">{application.weightedScore}%</p>
           </Card>
           <Card>
             <p className="text-sm text-slate-600 mb-1">Rank</p>
@@ -192,6 +209,98 @@ export const CandidateDetailsPage: React.FC = () => {
             </Badge>
           </Card>
         </div>
+
+        {/* AI Recommendation Card */}
+        {application.aiRecommendation && (
+          <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Brain className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-semibold text-slate-900">AI Hiring Recommendation</h3>
+                  <Badge variant={getRecommendationBadge(application.aiRecommendation)}>
+                    {application.aiRecommendation.replace('-', ' ').toUpperCase()}
+                  </Badge>
+                </div>
+                <p className="text-slate-700">{application.aiReasoning}</p>
+                {application.autoEvaluated && (
+                  <div className="mt-3 flex items-center gap-2 text-sm text-purple-700">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Auto-evaluated by AI</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Detailed Scores */}
+        <Card>
+          <h2 className="text-lg font-semibold text-slate-900 mb-6">Detailed Performance</h2>
+          <div className="grid grid-cols-4 gap-6">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-700">Technical</span>
+                <span className="text-lg font-bold text-blue-600">
+                  {application.detailedScores?.technical || 0}%
+                </span>
+              </div>
+              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 rounded-full"
+                  style={{ width: `${application.detailedScores?.technical || 0}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-700">Problem Solving</span>
+                <span className="text-lg font-bold text-green-600">
+                  {application.detailedScores?.problemSolving || 0}%
+                </span>
+              </div>
+              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-green-600 rounded-full"
+                  style={{ width: `${application.detailedScores?.problemSolving || 0}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-700">Communication</span>
+                <span className="text-lg font-bold text-purple-600">
+                  {application.detailedScores?.communication || 0}%
+                </span>
+              </div>
+              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-600 rounded-full"
+                  style={{ width: `${application.detailedScores?.communication || 0}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-700">Coding</span>
+                <span className="text-lg font-bold text-amber-600">
+                  {application.detailedScores?.coding || 0}%
+                </span>
+              </div>
+              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-amber-600 rounded-full"
+                  style={{ width: `${application.detailedScores?.coding || 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Skills Breakdown */}
         {analytics?.skillBreakdown && (
@@ -259,7 +368,9 @@ export const CandidateDetailsPage: React.FC = () => {
                   <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-slate-700">{strength}</p>
                 </div>
-              ))}
+              )) || (
+                <p className="text-slate-500 text-center py-4">No data available</p>
+              )}
             </div>
           </Card>
 
@@ -273,10 +384,12 @@ export const CandidateDetailsPage: React.FC = () => {
             <div className="space-y-3">
               {analytics?.weaknesses?.map((weakness: string, idx: number) => (
                 <div key={idx} className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                  <XCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-slate-700">{weakness}</p>
                 </div>
-              ))}
+              )) || (
+                <p className="text-slate-500 text-center py-4">No data available</p>
+              )}
             </div>
           </Card>
         </div>
@@ -289,12 +402,42 @@ export const CandidateDetailsPage: React.FC = () => {
               {analytics.aiInsights.map((insight: any, idx: number) => (
                 <div key={idx} className="border border-slate-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-slate-900">{insight.category}</h4>
+                    <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <Target className="w-4 h-4 text-blue-600" />
+                      {insight.category}
+                    </h4>
                     <Badge variant="success">{insight.confidence}% confidence</Badge>
                   </div>
                   <p className="text-sm text-slate-700">{insight.insight}</p>
                 </div>
               ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Skill Gaps (if any) */}
+        {application.skillGaps && application.skillGaps.length > 0 && (
+          <Card className="bg-amber-50 border-amber-200">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-slate-900 mb-3">Skill Gaps Detected</h3>
+                <div className="space-y-2">
+                  {application.skillGaps.map((gap: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg">
+                      <span className="font-medium text-slate-900">{gap.skill}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-600">
+                          Actual: {gap.actualScore}%
+                        </span>
+                        <Badge variant="warning">{gap.gap}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </Card>
         )}

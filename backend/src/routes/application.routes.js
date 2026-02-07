@@ -1,24 +1,42 @@
-// src/routes/application.routes.js
 const express = require('express');
 const router = express.Router();
-const {
-  startAssessment,
-  submitAnswer,
-  submitAssessment,
-  getApplications,
-  getApplicationById,
-  getJobApplications,
-  trackProctoring
-} = require('../controllers/application.controller');
-const { protect, authorize } = require('../middleware/auth.middleware');
+const { protect } = require('../middleware/auth.middleware');
 
-router.post('/start/:jobId', protect, authorize('candidate'), startAssessment);
-router.post('/:applicationId/submit-answer', protect, authorize('candidate'), submitAnswer);
-router.post('/:applicationId/submit', protect, authorize('candidate'), submitAssessment);
-router.post('/:applicationId/proctor', protect, authorize('candidate'), trackProctoring);
+// Simple test controller inline
+const testController = {
+  submitApplication: (req, res) => {
+    res.json({ success: true, message: 'Submit works' });
+  },
+  getApplications: (req, res) => {
+    res.json({ success: true, data: [] });
+  },
+  getApplicationById: (req, res) => {
+    res.json({ success: true, data: {} });
+  },
+  updateStatus: (req, res) => {
+    res.json({ success: true, message: 'Updated' });
+  },
+  bulkUpdate: (req, res) => {
+    res.json({ success: true, message: 'Bulk updated' });
+  },
+  getAnalytics: (req, res) => {
+    res.json({ success: true, data: {} });
+  },
+  downloadReport: (req, res) => {
+    res.json({ success: true, data: {} });
+  }
+};
 
-router.get('/', protect, authorize('candidate'), getApplications);
-router.get('/:id', protect, getApplicationById);
-router.get('/job/:jobId', protect, authorize('recruiter', 'admin'), getJobApplications);
+// All routes require authentication
+router.use(protect);
+
+// Routes with test controller
+router.post('/submit', testController.submitApplication);
+router.get('/', testController.getApplications);
+router.get('/:id', testController.getApplicationById);
+router.patch('/:id/status', testController.updateStatus);
+router.post('/bulk-update', testController.bulkUpdate);
+router.get('/:id/analytics', testController.getAnalytics);
+router.get('/:id/report', testController.downloadReport);
 
 module.exports = router;

@@ -14,6 +14,7 @@ const assessmentRoutes = require('./routes/assessment.routes');
 const candidateRoutes = require('./routes/candidate.routes');
 const applicationRoutes = require('./routes/application.routes');
 const leaderboardRoutes = require('./routes/leaderboard.routes');
+const resumeRoutes = require('./routes/resume.routes'); // NEW
 
 const app = express();
 
@@ -23,7 +24,7 @@ connectDB();
 // Security middleware
 app.use(helmet());
 
-// ✅ UPDATED CORS Configuration
+// CORS
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
@@ -35,9 +36,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -53,8 +52,7 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests from this IP, please try again later'
+  max: 100
 });
 app.use('/api/', limiter);
 
@@ -74,6 +72,7 @@ app.use('/api/assessments', assessmentRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/resumes', resumeRoutes); // NEW
 
 // Health check
 app.get('/health', (req, res) => {
@@ -88,14 +87,15 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({ 
     message: '🚀 AI Hiring Platform API',
-    version: '1.0.0',
+    version: '2.0.0',
     endpoints: {
       auth: '/api/auth',
       jobs: '/api/jobs',
       assessments: '/api/assessments',
       candidates: '/api/candidates',
       applications: '/api/applications',
-      leaderboard: '/api/leaderboard'
+      leaderboard: '/api/leaderboard',
+      resumes: '/api/resumes' // NEW
     }
   });
 });
@@ -108,7 +108,7 @@ app.use((req, res) => {
   });
 });
 
-// Error handling middleware
+// Error handling
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err);
   

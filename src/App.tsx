@@ -7,7 +7,7 @@ import { SignupPage } from './pages/auth/SignupPage';
 
 // Dashboard
 import { DashboardPage } from './pages/dashboard/DashboardPage';
-
+import { ResumeScreeningPage } from './pages/resume/ResumeScreeningPage';
 // Jobs
 import { JobsPage } from './pages/jobs/JobsPage';
 import { CreateJobPage } from './pages/jobs/CreateJobPage';
@@ -62,6 +62,15 @@ function App() {
           element={
             <ProtectedRoute>
               <JobsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/resume-screening"
+          element={
+            <ProtectedRoute>
+              <ResumeScreeningPage />
             </ProtectedRoute>
           }
         />
