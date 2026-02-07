@@ -29,7 +29,10 @@ app.use(helmet());
 
 // CORS - Allow all origins temporarily
 app.use(cors({
-  origin: '*',
+  origin: [ '*',
+    'http://localhost:5173',
+    'https://iitgn-hackathon-final.vercel.app'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
