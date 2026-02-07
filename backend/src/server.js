@@ -14,9 +14,12 @@ const assessmentRoutes = require('./routes/assessment.routes');
 const candidateRoutes = require('./routes/candidate.routes');
 const applicationRoutes = require('./routes/application.routes');
 const leaderboardRoutes = require('./routes/leaderboard.routes');
-const resumeRoutes = require('./routes/resume.routes'); // NEW
+const resumeRoutes = require('./routes/resume.routes');
 
 const app = express();
+
+// Trust proxy for Render
+app.set('trust proxy', 1);
 
 // Connect to MongoDB
 connectDB();
@@ -24,26 +27,9 @@ connectDB();
 // Security middleware
 app.use(helmet());
 
-// CORS
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:3002',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  process.env.FRONTEND_URL
-].filter(Boolean);
-
+// CORS - Allow all origins temporarily
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('❌ CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -52,7 +38,9 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
@@ -72,7 +60,7 @@ app.use('/api/assessments', assessmentRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
-app.use('/api/resumes', resumeRoutes); // NEW
+app.use('/api/resumes', resumeRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -86,7 +74,7 @@ app.get('/health', (req, res) => {
 // Root route
 app.get('/', (req, res) => {
   res.json({ 
-    message: '🚀 AI Hiring Platform API',
+    message: 'AI Hiring Platform API',
     version: '2.0.0',
     endpoints: {
       auth: '/api/auth',
@@ -95,7 +83,7 @@ app.get('/', (req, res) => {
       candidates: '/api/candidates',
       applications: '/api/applications',
       leaderboard: '/api/leaderboard',
-      resumes: '/api/resumes' // NEW
+      resumes: '/api/resumes'
     }
   });
 });
@@ -110,7 +98,7 @@ app.use((req, res) => {
 
 // Error handling
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err);
+  console.error('Error:', err);
   
   res.status(err.status || 500).json({
     success: false,
@@ -124,9 +112,8 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Allowed CORS origins:`, allowedOrigins);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 module.exports = app;
