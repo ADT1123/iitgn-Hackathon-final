@@ -175,7 +175,7 @@ export const CandidateDashboard: React.FC = () => {
                 <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">{job.title}</h3>
                 <p className="text-sm text-slate-500 mt-1">{job.department} • {job.location}</p>
                 <div className="mt-3 flex items-center justify-between">
-                  <Badge variant="secondary">{job.type}</Badge>
+                  <Badge variant="info">{job.type}</Badge>
                   <span className="text-xs font-medium text-blue-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
                     View Details <ArrowRight className="w-3 h-3 ml-1" />
                   </span>

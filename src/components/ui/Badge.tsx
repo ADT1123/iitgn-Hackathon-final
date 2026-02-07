@@ -2,7 +2,7 @@ import React from 'react';
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'secondary' | 'accent';
   className?: string;
 }
 
@@ -13,10 +13,12 @@ export const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', cla
     warning: 'bg-amber-50 text-amber-700 border-amber-200',
     danger: 'bg-red-50 text-red-700 border-red-200',
     info: 'bg-blue-50 text-blue-700 border-blue-200',
+    secondary: 'bg-slate-100 text-slate-600 border-slate-200',
+    accent: 'bg-violet-50 text-violet-700 border-violet-200',
   };
-  
+
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border ${variants[variant]} ${className}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${variants[variant]} ${className}`}>
       {children}
     </span>
   );

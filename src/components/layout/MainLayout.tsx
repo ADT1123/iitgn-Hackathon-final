@@ -18,11 +18,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50/50">
       <Sidebar onLogout={handleLogout} />
       <Header user={user} />
-      <main className="ml-64 mt-16 p-6">
-        {children}
+      <main className="ml-64 mt-20 p-8 min-h-[calc(100vh-80px)] transition-all duration-300">
+        <div className="max-w-7xl mx-auto">
+          {children}
+        </div>
       </main>
     </div>
   );
