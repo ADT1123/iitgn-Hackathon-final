@@ -151,7 +151,7 @@ export const AssessmentDetailsPage: React.FC = () => {
             </div>
 
             <Button
-              variant={assessment.linkActive ? 'danger' : 'success'}
+              variant={assessment.linkActive ? 'danger' : 'primary'}
               onClick={toggleLinkStatus}
             >
               <Power className="w-4 h-4 mr-2" />
