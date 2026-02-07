@@ -5,6 +5,18 @@ const Job = require('../models/Job');
 // ✅ Single resume screening
 exports.screenResume = async (req, res) => {
   try {
+    console.log('=== RESUME SCREENING REQUEST ===');
+    console.log('File received:', req.file ? 'YES' : 'NO');
+    if (req.file) {
+      console.log('File details:', {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      });
+    }
+    console.log('Request body:', req.body);
+    console.log('================================');
+
     // Check if file exists
     if (!req.file) {
       return res.status(400).json({
@@ -13,54 +25,46 @@ exports.screenResume = async (req, res) => {
       });
     }
 
-    // Get jobId from request body
-    const { jobId } = req.body;
-    
-    if (!jobId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Job ID is required'
-      });
-    }
+    // Get jobId or jobDescription from request body
+    const { jobId, jobDescription: rawJobDescription } = req.body;
 
-    console.log('Screening resume for jobId:', jobId);
+    let finalJobDescription = '';
+    let jobTitle = 'Custom Analysis';
+    let mongoJobId = null;
 
-    // Fetch job from database
-    const job = await Job.findById(jobId);
-    
-    if (!job) {
-      return res.status(404).json({
-        success: false,
-        message: 'Job not found'
-      });
-    }
-
-    // Create job description
-    const jobDescription = `
+    if (jobId) {
+      // Fetch job from database if jobId is provided
+      const job = await Job.findById(jobId);
+      if (!job) {
+        return res.status(404).json({
+          success: false,
+          message: 'Job not found'
+        });
+      }
+      mongoJobId = job._id;
+      jobTitle = job.title;
+      finalJobDescription = `
 Job Title: ${job.title}
 Department: ${job.department || 'N/A'}
-Location: ${job.location || 'N/A'}
 Experience Level: ${job.experienceLevel || 'N/A'}
-
-Description:
-${job.description || 'N/A'}
-
-Required Skills:
-${job.requiredSkills?.join(', ') || 'N/A'}
-
-Preferred Skills:
-${job.preferredSkills?.join(', ') || 'N/A'}
-
-Requirements:
-${job.requirements?.join('\n') || 'N/A'}
-    `.trim();
+Description: ${job.description || 'N/A'}
+Required Skills: ${job.requiredSkills?.join(', ') || 'N/A'}
+      `.trim();
+    } else if (rawJobDescription) {
+      finalJobDescription = rawJobDescription;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Job ID or Job Description is required'
+      });
+    }
 
     console.log('Analyzing resume:', req.file.originalname);
-    
+
     // Call resume service
     const analysis = await resumeService.analyzeResume(
-      req.file.buffer, 
-      jobDescription
+      req.file.buffer,
+      finalJobDescription
     );
 
     // Return response
@@ -70,18 +74,21 @@ ${job.requirements?.join('\n') || 'N/A'}
         filename: req.file.originalname,
         fileSize: req.file.size,
         mimeType: req.file.mimetype,
-        jobTitle: job.title,
-        jobId: job._id,
+        jobTitle: jobTitle,
+        jobId: mongoJobId,
         analysis: analysis
       }
     });
 
   } catch (error) {
-    console.error('Screening error:', error);
+    console.error('=== RESUME SCREENING ERROR ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', error);
+    console.error('==============================');
     res.status(500).json({
       success: false,
-      message: error.message || 'Failed to screen resume',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message || 'Failed to screen resume'
     });
   }
 };
@@ -97,7 +104,7 @@ exports.bulkScreenResumes = async (req, res) => {
     }
 
     const { jobId } = req.body;
-    
+
     if (!jobId) {
       return res.status(400).json({
         success: false,
@@ -108,7 +115,7 @@ exports.bulkScreenResumes = async (req, res) => {
     console.log(`Bulk screening ${req.files.length} resumes...`);
 
     const job = await Job.findById(jobId);
-    
+
     if (!job) {
       return res.status(404).json({
         success: false,
@@ -128,7 +135,7 @@ Required Skills: ${job.requiredSkills?.join(', ') || 'N/A'}
       req.files.map(async (file) => {
         try {
           const analysis = await resumeService.analyzeResume(
-            file.buffer, 
+            file.buffer,
             jobDescription
           );
           return {
@@ -171,12 +178,12 @@ Required Skills: ${job.requiredSkills?.join(', ') || 'N/A'}
 exports.getEligibilityReport = async (req, res) => {
   try {
     const { applicationId } = req.params;
-    
+
     // Fetch application with resume analysis
     const Application = require('../models/Application');
     const application = await Application.findById(applicationId)
       .populate('job');
-    
+
     if (!application) {
       return res.status(404).json({
         success: false,
@@ -207,11 +214,11 @@ exports.getEligibilityReport = async (req, res) => {
 exports.checkSkillMismatch = async (req, res) => {
   try {
     const { applicationId } = req.params;
-    
+
     const Application = require('../models/Application');
     const application = await Application.findById(applicationId)
       .populate('job');
-    
+
     if (!application) {
       return res.status(404).json({
         success: false,

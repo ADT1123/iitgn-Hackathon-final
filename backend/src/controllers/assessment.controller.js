@@ -14,7 +14,7 @@ exports.getAssessments = async (req, res) => {
     const assessments = await Assessment.find({ recruiter: req.user.id })
       .populate('job', 'title department location')
       .sort('-createdAt');
-    
+
     res.status(200).json({
       success: true,
       count: assessments.length,
@@ -35,7 +35,7 @@ exports.getAssessmentById = async (req, res) => {
     const assessment = await Assessment.findById(req.params.id)
       .populate('job')
       .populate('recruiter', 'firstName lastName email');
-    
+
     if (!assessment) {
       return res.status(404).json({
         success: false,
@@ -53,14 +53,14 @@ exports.getAssessmentById = async (req, res) => {
       completed: applications.filter(a => a.status === 'completed' || a.status === 'shortlisted' || a.status === 'rejected').length,
       shortlisted: applications.filter(a => a.status === 'shortlisted').length,
       rejected: applications.filter(a => a.status === 'rejected').length,
-      averageScore: applications.length > 0 
+      averageScore: applications.length > 0
         ? Math.round(applications.reduce((sum, a) => sum + (a.totalScore || 0), 0) / applications.length)
         : 0,
-      highestScore: applications.length > 0 
+      highestScore: applications.length > 0
         ? Math.max(...applications.map(a => a.totalScore || 0))
         : 0
     };
-    
+
     res.status(200).json({
       success: true,
       data: {
@@ -78,13 +78,22 @@ exports.getAssessmentById = async (req, res) => {
   }
 };
 
+const geminiService = require('../services/gemini.service');
+
 // Generate questions with AI
 exports.generateQuestions = async (req, res) => {
   try {
-    const { jobId, objectiveCount, subjectiveCount, codingCount, duration, difficulty } = req.body;
+    const {
+      jobId,
+      objectiveCount = 0,
+      subjectiveCount = 0,
+      codingCount = 0,
+      duration = 60,
+      difficulty = 'medium',
+      title: customTitle
+    } = req.body;
 
-    console.log('Generating assessment for job:', jobId);
-    console.log('Config:', { objectiveCount, subjectiveCount, codingCount, duration, difficulty });
+    console.log('🚀 AI Assessment Generation started for Job:', jobId);
 
     const job = await Job.findById(jobId);
     if (!job) {
@@ -94,160 +103,110 @@ exports.generateQuestions = async (req, res) => {
       });
     }
 
+    const skills = job.skills && job.skills.length > 0 ? job.skills : ['General Programming', 'Problem Solving'];
     const questions = [];
-    const skills = job.skills || ['General'];
-    const totalQuestions = (objectiveCount || 0) + (subjectiveCount || 0) + (codingCount || 0);
 
-    console.log(`Creating ${totalQuestions} questions for skills:`, skills.join(', '));
+    // Parallel generation for speed
+    const objectivePromises = [];
+    const subjectivePromises = [];
+    const codingPromises = [];
 
-    // Generate objective questions
+    // Objective questions
     if (objectiveCount > 0) {
-      if (genAI) {
-        try {
-          console.log('Using AI to generate objective questions...');
-          const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-          
-          const prompt = `
-Generate ${objectiveCount} multiple choice questions for a ${job.title} position.
-Required skills: ${skills.join(', ')}
-Difficulty: ${difficulty || 'medium'}
-
-Return ONLY a valid JSON array with this exact structure:
-[
-  {
-    "question": "What is the primary purpose of React hooks?",
-    "options": ["State management", "Routing", "Styling", "Testing"],
-    "correctAnswer": "State management",
-    "skill": "React",
-    "difficulty": "medium"
-  }
-]
-
-Do not include markdown, explanations, or any text outside the JSON array.`;
-
-          const result = await model.generateContent(prompt);
-          let text = result.response.text();
-          text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-          
-          const aiQuestions = JSON.parse(text);
-          
-          aiQuestions.forEach(q => {
-            questions.push({
-              type: 'objective',
-              question: q.question,
-              options: q.options,
-              correctAnswer: q.correctAnswer,
-              points: 1,
-              difficulty: q.difficulty || difficulty || 'medium',
-              skill: q.skill || skills[0]
-            });
-          });
-
-          console.log(`Generated ${questions.length} AI objective questions`);
-        } catch (aiError) {
-          console.error('AI generation failed:', aiError.message);
-          // Fallback to template
-          for (let i = 0; i < objectiveCount; i++) {
-            const skill = skills[i % skills.length];
-            questions.push({
-              type: 'objective',
-              question: `Which statement best describes your proficiency in ${skill}?`,
-              options: [
-                `Expert level understanding of ${skill}`,
-                `Intermediate working knowledge of ${skill}`,
-                `Basic familiarity with ${skill}`,
-                `No prior experience with ${skill}`
-              ],
-              correctAnswer: `Expert level understanding of ${skill}`,
-              points: 1,
-              difficulty: difficulty || 'medium',
-              skill: skill
-            });
-          }
-        }
-      } else {
-        // Template questions when no AI
-        console.log('No AI available, using templates');
-        for (let i = 0; i < objectiveCount; i++) {
-          const skill = skills[i % skills.length];
-          questions.push({
-            type: 'objective',
-            question: `Assess your knowledge of ${skill} in a professional context`,
-            options: [
-              `Advanced: Can architect and lead projects using ${skill}`,
-              `Intermediate: Can independently work with ${skill}`,
-              `Beginner: Have basic understanding of ${skill}`,
-              `Novice: Limited exposure to ${skill}`
-            ],
-            correctAnswer: `Advanced: Can architect and lead projects using ${skill}`,
-            points: 1,
-            difficulty: difficulty || 'medium',
-            skill: skill
-          });
-        }
-      }
-    }
-
-    // Generate subjective questions
-    for (let i = 0; i < (subjectiveCount || 0); i++) {
-      const skill = skills[i % skills.length];
-      questions.push({
-        type: 'subjective',
-        question: `Describe a challenging project where you used ${skill}. What was the problem, your approach, and the outcome?`,
-        points: 5,
-        difficulty: difficulty || 'medium',
-        skill: skill
+      const countPerSkill = Math.ceil(objectiveCount / skills.length);
+      skills.forEach(skill => {
+        objectivePromises.push(geminiService.generateObjectiveQuestions(skill, difficulty, countPerSkill));
       });
     }
 
-    // Generate coding questions
-    for (let i = 0; i < (codingCount || 0); i++) {
-      const skill = skills[i % skills.length];
-      questions.push({
-        type: 'coding',
-        question: `Write a function that demonstrates your understanding of ${skill}. Include proper error handling, comments, and consider edge cases.`,
-        points: 10,
-        difficulty: difficulty || 'medium',
-        skill: 'Coding',
-        testCases: [
-          { input: 'example input', expectedOutput: 'expected output' }
-        ]
+    // Subjective questions
+    if (subjectiveCount > 0) {
+      const countPerSkill = Math.ceil(subjectiveCount / skills.length);
+      skills.forEach(skill => {
+        subjectivePromises.push(geminiService.generateSubjectiveQuestions(skill, difficulty, countPerSkill));
       });
     }
 
-    console.log(`Total questions created: ${questions.length}`);
+    // Coding questions
+    if (codingCount > 0) {
+      const countPerSkill = Math.ceil(codingCount / skills.length);
+      skills.forEach(skill => {
+        codingPromises.push(geminiService.generateProgrammingQuestions(skill, difficulty, countPerSkill));
+      });
+    }
+
+    const [objResults, subjResults, codeResults] = await Promise.all([
+      Promise.all(objectivePromises),
+      Promise.all(subjectivePromises),
+      Promise.all(codingPromises)
+    ]);
+
+    // Flatten and trim to exact counts
+    const flattenedObj = objResults.flat().slice(0, objectiveCount);
+    const flattenedSubj = subjResults.flat().slice(0, subjectiveCount);
+    const flattenedCode = codeResults.flat().slice(0, codingCount);
+
+    // Map to Assessment Question model
+    flattenedObj.forEach(q => questions.push({
+      type: 'objective',
+      question: q.question,
+      options: q.options.map(opt => opt.text || opt),
+      correctAnswer: q.options.findIndex(opt => opt.isCorrect === true) || 0,
+      points: 2,
+      difficulty: q.difficulty || difficulty,
+      skill: q.category || 'Technical'
+    }));
+
+    flattenedSubj.forEach(q => questions.push({
+      type: 'subjective',
+      question: q.question,
+      points: 10,
+      difficulty: q.difficulty || difficulty,
+      skill: q.category || 'Conceptual',
+      rubric: q.rubric
+    }));
+
+    flattenedCode.forEach(q => questions.push({
+      type: 'coding',
+      question: q.question,
+      points: 25,
+      difficulty: q.difficulty || difficulty,
+      skill: q.category || 'Problem Solving',
+      testCases: q.testCases?.map(tc => ({
+        input: tc.input,
+        expectedOutput: tc.expectedOutput || tc.output
+      }))
+    }));
+
+    console.log(`✅ Generated ${questions.length} questions successfully`);
 
     // Create assessment
     const assessment = await Assessment.create({
       job: jobId,
       recruiter: req.user.id,
-      title: `${job.title} Assessment`,
-      duration: duration || 60,
+      title: customTitle || `${job.title} AI Assessment`,
+      duration: duration,
       totalQuestions: questions.length,
       questions,
+      passingScore: 60,
       status: 'published'
     });
 
-    console.log(`Assessment created successfully: ${assessment._id}`);
-    console.log(`Unique link: ${assessment.uniqueLink}`);
-
-    // Link assessment to job
+    // Link to job
     job.assessment = assessment._id;
     await job.save();
 
     res.status(201).json({
       success: true,
-      message: 'Assessment generated successfully',
+      message: 'AI Assessment generated successfully',
       data: assessment
     });
 
   } catch (error) {
-    console.error('Generate questions error:', error);
-    console.error('Stack:', error.stack);
+    console.error('❌ Assessment Generation Error:', error);
     res.status(500).json({
       success: false,
-      message: error.message,
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message || 'Failed to generate AI assessment'
     });
   }
 };
@@ -394,8 +353,8 @@ exports.submitCandidateAssessment = async (req, res) => {
         applicationId: application._id,
         totalScore: totalPercentage,
         status,
-        feedback: totalPercentage >= 60 
-          ? 'Great job! Your performance meets our requirements.' 
+        feedback: totalPercentage >= 60
+          ? 'Great job! Your performance meets our requirements.'
           : 'Thank you for your submission. We will review your application.'
       }
     });
@@ -417,14 +376,14 @@ exports.updateAssessment = async (req, res) => {
       req.body,
       { new: true, runValidators: true }
     );
-    
+
     if (!assessment) {
       return res.status(404).json({
         success: false,
         message: 'Assessment not found'
       });
     }
-    
+
     res.status(200).json({
       success: true,
       data: assessment
@@ -441,14 +400,14 @@ exports.updateAssessment = async (req, res) => {
 exports.deleteAssessment = async (req, res) => {
   try {
     const assessment = await Assessment.findByIdAndDelete(req.params.id);
-    
+
     if (!assessment) {
       return res.status(404).json({
         success: false,
         message: 'Assessment not found'
       });
     }
-    
+
     res.status(200).json({
       success: true,
       message: 'Assessment deleted'
@@ -465,7 +424,7 @@ exports.deleteAssessment = async (req, res) => {
 exports.toggleLinkStatus = async (req, res) => {
   try {
     const assessment = await Assessment.findById(req.params.id);
-    
+
     if (!assessment) {
       return res.status(404).json({
         success: false,

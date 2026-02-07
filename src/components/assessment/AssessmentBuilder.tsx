@@ -6,6 +6,7 @@ import {
     Plus, Trash2, GripVertical, Settings, Wand2, Save,
     Eye, Copy, Clock, Target, Code, FileText, CheckSquare
 } from 'lucide-react';
+import { assessmentAPI } from '@/services/api';
 import './AssessmentBuilder.css';
 
 interface Question {
@@ -113,55 +114,40 @@ const AssessmentBuilder: React.FC<AssessmentBuilderProps> = ({
 
     const handleGenerateQuestions = async () => {
         setIsGenerating(true);
-        // Simulate AI generation - in production, this would call the backend API
-        setTimeout(() => {
-            const generatedQuestions: Question[] = [];
+        try {
+            const response = await assessmentAPI.generateQuestions(jobId, {
+                objectiveCount: config.sections.objective.count,
+                subjectiveCount: config.sections.subjective.count,
+                codingCount: config.sections.coding.count,
+                duration: config.duration,
+                difficulty: 'medium', // Default for auto-gen
+                title: config.title
+            });
 
-            // Generate objective questions
-            for (let i = 0; i < config.sections.objective.count; i++) {
-                generatedQuestions.push({
-                    id: generateQuestionId(),
-                    type: 'objective',
-                    text: `Sample objective question ${i + 1} about ${extractedSkills[i % extractedSkills.length] || 'general topic'}`,
-                    options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                    correctAnswer: Math.floor(Math.random() * 4),
-                    difficulty: ['easy', 'medium', 'hard'][Math.floor(Math.random() * 3)] as any,
-                    skills: [extractedSkills[i % extractedSkills.length] || 'Technical'],
-                    points: config.sections.objective.pointsEach
-                });
+            if (response.data.success) {
+                const generatedQuestions: Question[] = response.data.data.questions.map((q: any) => ({
+                    id: q._id || generateQuestionId(),
+                    type: q.type === 'programming' ? 'coding' : q.type,
+                    text: q.question,
+                    options: q.type === 'objective' ? q.options : undefined,
+                    correctAnswer: q.type === 'objective' ? q.correctAnswer : undefined,
+                    difficulty: q.difficulty || 'medium',
+                    skills: [q.skill || 'Technical'],
+                    points: q.points,
+                    testCases: q.type === 'coding' ? q.testCases : undefined,
+                    rubric: q.rubric
+                }));
+
+                setQuestions(generatedQuestions);
+                setActiveTab('questions');
             }
-
-            // Generate subjective questions
-            for (let i = 0; i < config.sections.subjective.count; i++) {
-                generatedQuestions.push({
-                    id: generateQuestionId(),
-                    type: 'subjective',
-                    text: `Explain your approach to ${extractedSkills[i % extractedSkills.length] || 'solving complex problems'}. Provide examples.`,
-                    difficulty: 'medium',
-                    skills: [extractedSkills[i % extractedSkills.length] || 'Communication'],
-                    points: config.sections.subjective.pointsEach
-                });
-            }
-
-            // Generate coding questions
-            for (let i = 0; i < config.sections.coding.count; i++) {
-                generatedQuestions.push({
-                    id: generateQuestionId(),
-                    type: 'coding',
-                    text: `Write a function to solve ${extractedSkills[i % extractedSkills.length] || 'algorithm'} problem.`,
-                    difficulty: 'medium',
-                    skills: [extractedSkills[i % extractedSkills.length] || 'Coding'],
-                    points: config.sections.coding.pointsEach,
-                    testCases: [
-                        { input: 'Sample input', output: 'Expected output' }
-                    ]
-                });
-            }
-
-            setQuestions(generatedQuestions);
+        } catch (error) {
+            console.error('Failed to generate AI questions:', error);
+            // Fallback or error notification could be added here
+            alert('Failed to generate questions. Please try again.');
+        } finally {
             setIsGenerating(false);
-            setActiveTab('questions');
-        }, 2000);
+        }
     };
 
     const handleSave = () => {

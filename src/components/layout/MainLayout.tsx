@@ -1,31 +1,32 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { useNavigate } from 'react-router-dom';
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  // Mock user for header
+  const user = JSON.parse(localStorage.getItem('user') || '{"name": "Recruiter", "role": "admin", "company": "HireAI"}');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    navigate('/login');
+    window.location.href = '/login';
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
+    <div className="min-h-screen bg-slate-50 flex">
       <Sidebar onLogout={handleLogout} />
-      <Header user={user} />
-      <main className="ml-64 mt-20 p-8 min-h-[calc(100vh-80px)] transition-all duration-300">
-        <div className="max-w-7xl mx-auto">
+
+      <div className="flex-1 ml-64 flex flex-col min-h-screen transition-all duration-300">
+        <Header user={user} />
+
+        <main className="flex-1 p-8 pt-24 max-w-6xl w-full mx-auto animate-fade-in">
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

@@ -1,15 +1,15 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Briefcase,
-  FileText,
   Users,
-  BarChart3,
+  FileText,
   Settings,
   LogOut,
-  Sparkles
+  Sparkles,
+  BarChart3
 } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
   onLogout: () => void;
@@ -19,56 +19,56 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isActive = (path: string) => location.pathname === path;
+
   const menuItems = [
     {
-      group: 'OVERVIEW',
+      group: 'General',
       items: [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
         { icon: BarChart3, label: 'Analytics', path: '/analytics' },
       ]
     },
     {
-      group: 'RECRUITMENT',
+      group: 'Recruitment',
       items: [
         { icon: Briefcase, label: 'Jobs', path: '/jobs' },
         { icon: Users, label: 'Candidates', path: '/candidates' },
       ]
     },
     {
-      group: 'AI TOOLS',
+      group: 'Tools',
       items: [
-        { icon: Sparkles, label: 'Resume Screening', path: '/resume-screening', highlighted: true },
+        { icon: Sparkles, label: 'AI Screening', path: '/resume-screening' },
         { icon: FileText, label: 'Assessments', path: '/assessments' },
       ]
     },
     {
-      group: 'SYSTEM',
+      group: 'Account',
       items: [
         { icon: Settings, label: 'Settings', path: '/settings' },
       ]
     }
   ];
 
-  const isActive = (path: string) => location.pathname === path;
-
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 h-screen flex flex-col fixed left-0 top-0 z-20 shadow-xl">
+    <aside className="w-64 bg-white border-r border-slate-200 h-screen flex flex-col fixed left-0 top-0 z-20">
       {/* Logo */}
-      <div className="p-8 flex items-center gap-3">
-        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/40">
-          <Sparkles className="w-6 h-6 text-white" />
+      <div className="p-6 flex items-center gap-3">
+        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <Sparkles className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">HireAI</h1>
-          <p className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider">Recruiter Pro</p>
+          <h1 className="text-lg font-bold text-slate-900 tracking-tight">HireAI</h1>
+          <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Recruiter Portal</p>
         </div>
       </div>
 
       {/* Menu */}
-      <nav className="flex-1 px-4 py-2 space-y-8 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 px-4 py-2 space-y-6 overflow-y-auto custom-scrollbar">
         {menuItems.map((group) => (
-          <div key={group.group} className="space-y-2">
-            <h3 className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-4">
+          <div key={group.group}>
+            <h3 className="px-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
               {group.group}
             </h3>
             <div className="space-y-1">
@@ -76,23 +76,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group ${isActive(item.path)
-                      ? 'bg-blue-600/10 text-blue-400 font-semibold'
-                      : 'hover:bg-slate-800 hover:text-white'
-                    } ${item.highlighted ? 'relative' : ''}`}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${isActive(item.path)
+                      ? 'bg-blue-50 text-blue-600 font-medium'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
                 >
-                  <item.icon className={`w-5 h-5 ${isActive(item.path) ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400'
+                  <item.icon className={`w-4 h-4 ${isActive(item.path) ? 'text-blue-600' : 'text-slate-400'
                     }`} />
                   <span className="text-sm">{item.label}</span>
-                  {isActive(item.path) && (
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
-                  )}
-                  {item.highlighted && !isActive(item.path) && (
-                    <span className="ml-auto flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-blue-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                    </span>
-                  )}
                 </button>
               ))}
             </div>
@@ -101,12 +92,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       </nav>
 
       {/* Logout */}
-      <div className="p-4 bg-slate-800/50 mt-auto border-t border-slate-800/50">
+      <div className="p-4 border-t border-slate-100">
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all duration-200"
+          className="w-full flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-4 h-4" />
           <span className="text-sm font-medium">Sign Out</span>
         </button>
       </div>
