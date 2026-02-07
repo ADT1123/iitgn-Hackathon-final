@@ -17,7 +17,7 @@ export default function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // ✅ Backend login handler
+  // ✅ FIXED: Backend login handler with proper response handling
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -32,25 +32,86 @@ export default function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
       console.log('🔐 Logging in...', { email });
       
       const response = await authAPI.login({ email, password });
-      console.log('✅ Login success:', response.data);
+      console.log('📦 Full Response:', response);
+      console.log('📦 Response Data:', response.data);
       
-      // Save token
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      // ✅ FIXED: Handle different response structures
+      const data = response.data.data || response.data; // Support both formats
+      const token = data.token || response.data.token;
+      const user = data.user || response.data.user || data;
+      
+      console.log('✅ Extracted Token:', token);
+      console.log('✅ Extracted User:', user);
+      
+      // ✅ Validate we have required data
+      if (!token) {
+        throw new Error('No token received from server');
+      }
+      
+      if (!user) {
+        throw new Error('No user data received from server');
+      }
+      
+      // Save token and user
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      console.log('💾 Saved to localStorage');
+      console.log('👤 User Role:', user.role);
+      
+      // Call parent onLogin callback
+      onLogin(user);
       
       // Navigate based on role
-      onLogin(response.data.user);
-      if (response.data.user.role === 'recruiter') {
+      if (user.role === 'recruiter') {
+        console.log('🔀 Navigating to recruiter-dashboard');
         onNavigate('recruiter-dashboard');
-      } else {
+      } else if (user.role === 'candidate') {
+        console.log('🔀 Navigating to candidate-assessment');
         onNavigate('candidate-assessment');
+      } else {
+        // Default fallback
+        console.log('🔀 Unknown role, navigating to dashboard');
+        onNavigate('recruiter-dashboard');
       }
+      
     } catch (err: any) {
       console.error('❌ Login error:', err);
-      setError(err.response?.data?.message || 'Invalid email or password');
+      console.error('❌ Error Response:', err.response);
+      
+      // ✅ Better error messages
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (err.response?.status === 401) {
+        errorMessage = 'Invalid email or password';
+      } else if (err.response?.status === 404) {
+        errorMessage = 'Account not found. Please sign up first.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message === 'Network Error') {
+        errorMessage = 'Cannot connect to server. Please check if backend is running.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ Quick test login (for debugging)
+  const handleDemoLogin = (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    // Auto-submit after a brief delay
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form) {
+        const event = new Event('submit', { bubbles: true, cancelable: true });
+        form.dispatchEvent(event);
+      }
+    }, 100);
   };
 
   return (
@@ -74,7 +135,14 @@ export default function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800">{error}</p>
+                <div className="flex-1">
+                  <p className="text-sm text-red-800">{error}</p>
+                  {error.includes('backend') && (
+                    <p className="text-xs text-red-700 mt-2">
+                      Make sure backend is running: <code className="bg-red-100 px-1 rounded">npm run dev</code>
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -196,10 +264,22 @@ export default function LoginPage({ onNavigate, onLogin }: LoginPageProps) {
 
         {/* Demo Credentials */}
         <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-amber-900 mb-2">Demo Credentials:</p>
-          <div className="space-y-1 text-xs text-amber-800">
-            <p><strong>Recruiter:</strong> recruiter@demo.com / demo123</p>
-            <p><strong>Candidate:</strong> candidate@demo.com / demo123</p>
+          <p className="text-sm font-medium text-amber-900 mb-3">Quick Test Login:</p>
+          <div className="space-y-2">
+            <button
+              onClick={() => handleDemoLogin('recruiter@demo.com', 'demo123')}
+              className="w-full text-left px-3 py-2 bg-white rounded border border-amber-300 hover:bg-amber-100 transition-colors"
+            >
+              <p className="text-xs font-semibold text-amber-900">Recruiter Account</p>
+              <p className="text-xs text-amber-700">recruiter@demo.com / demo123</p>
+            </button>
+            <button
+              onClick={() => handleDemoLogin('candidate@demo.com', 'demo123')}
+              className="w-full text-left px-3 py-2 bg-white rounded border border-amber-300 hover:bg-amber-100 transition-colors"
+            >
+              <p className="text-xs font-semibold text-amber-900">Candidate Account</p>
+              <p className="text-xs text-amber-700">candidate@demo.com / demo123</p>
+            </button>
           </div>
         </div>
       </div>

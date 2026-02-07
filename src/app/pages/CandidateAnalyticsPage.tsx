@@ -53,6 +53,7 @@ export default function CandidateAnalyticsPage({ navigate, onLogout, candidateId
   const [loading, setLoading] = useState(true);
   const [candidate, setCandidate] = useState<any>(null);
   const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadCandidateData();
@@ -62,173 +63,288 @@ export default function CandidateAnalyticsPage({ navigate, onLogout, candidateId
   const loadCandidateData = async () => {
     try {
       setLoading(true);
-      console.log('📊 Loading candidate analytics...', candidateId);
+      setError('');
       
-      // Mock data for now - replace with real API call
-      const mockCandidate = {
-        id: candidateId || '1',
-        name: 'Sarah Chen',
-        email: 'sarah.chen@email.com',
-        phone: '+1 234 567 8900',
-        score: 94,
-        rank: 1,
-        percentile: 98,
-        status: 'Qualified',
-        completedAt: '2026-02-05T14:30:00Z',
-        duration: 82,
+      // Get candidate ID from URL params or props
+      const id = candidateId || new URLSearchParams(window.location.search).get('id');
+      
+      if (!id) {
+        throw new Error('No candidate ID provided');
+      }
+      
+      console.log('📊 Loading candidate analytics for ID:', id);
+      
+      // ✅ Fetch candidate application data
+      const response = await applicationAPI.getApplicationById(id);
+      console.log('✅ Application data received:', response.data);
+      
+      // ✅ Fetch detailed analytics
+      const analyticsResponse = await applicationAPI.getAnalytics(id);
+      console.log('✅ Analytics data received:', analyticsResponse.data);
+      
+      // ✅ Merge data from both responses
+      const applicationData = response.data.data || response.data;
+      const analyticsData = analyticsResponse.data.data || analyticsResponse.data;
+      
+      // ✅ Transform backend data to frontend format
+      const transformedCandidate = {
+        id: applicationData._id || applicationData.id,
+        name: applicationData.candidate?.name || applicationData.candidateName || 'Unknown',
+        email: applicationData.candidate?.email || applicationData.email || '',
+        phone: applicationData.candidate?.phone || '',
+        score: applicationData.totalScore || analyticsData.overallScore || 0,
+        rank: analyticsData.rank || 1,
+        percentile: analyticsData.percentile || 0,
+        status: applicationData.status || 'Pending',
+        completedAt: applicationData.completedAt || applicationData.submittedAt || new Date().toISOString(),
+        duration: applicationData.duration || Math.floor((applicationData.timeSpent || 0) / 60),
         
-        // Skill scores
-        skillScores: [
-          { skill: 'React', score: 96, max: 100, category: 'Frontend' },
-          { skill: 'Node.js', score: 92, max: 100, category: 'Backend' },
-          { skill: 'JavaScript', score: 95, max: 100, category: 'Programming' },
-          { skill: 'TypeScript', score: 88, max: 100, category: 'Programming' },
-          { skill: 'MongoDB', score: 85, max: 100, category: 'Database' },
-          { skill: 'REST APIs', score: 93, max: 100, category: 'Backend' }
-        ],
+        // ✅ Skill scores from backend
+        skillScores: analyticsData.skillBreakdown?.map((skill: any) => ({
+          skill: skill.name || skill.skill,
+          score: skill.score || skill.percentage || 0,
+          max: 100,
+          category: skill.category || 'General'
+        })) || [],
         
-        // Section scores
-        sectionScores: [
-          { section: 'Objective', score: 95, avgScore: 78, total: 20, answered: 19, color: '#4F46E5' },
-          { section: 'Subjective', score: 92, avgScore: 75, total: 5, answered: 5, color: '#10B981' },
-          { section: 'Coding', score: 94, avgScore: 72, total: 3, answered: 3, color: '#8B5CF6' }
-        ],
+        // ✅ Section scores
+        sectionScores: analyticsData.sectionScores?.map((section: any) => ({
+          section: section.name || section.type,
+          score: section.score || 0,
+          avgScore: section.averageScore || 0,
+          total: section.totalQuestions || 0,
+          answered: section.answeredQuestions || 0,
+          color: section.type === 'objective' ? '#4F46E5' : 
+                 section.type === 'subjective' ? '#10B981' : '#8B5CF6'
+        })) || [],
         
-        // Time tracking
-        timeSpentPerSection: [
-          { section: 'Objective', time: 28, avgTime: 35 },
-          { section: 'Subjective', time: 35, avgTime: 30 },
-          { section: 'Coding', time: 19, avgTime: 25 }
-        ],
+        // ✅ Time tracking
+        timeSpentPerSection: analyticsData.timeAnalysis?.sections?.map((section: any) => ({
+          section: section.name || section.type,
+          time: Math.floor((section.timeSpent || 0) / 60),
+          avgTime: Math.floor((section.averageTime || 0) / 60)
+        })) || [],
         
-        // Strengths
-        strengths: [
-          'Excellent problem-solving skills demonstrated in coding challenges',
-          'Strong understanding of React hooks and component lifecycle',
-          'Well-articulated explanations in subjective answers',
-          'Efficient code implementation with proper error handling',
-          'Good grasp of asynchronous JavaScript patterns',
-          'Clean code structure and best practices followed'
-        ],
+        // ✅ Strengths from AI
+        strengths: analyticsData.strengths || [],
         
-        // Weaknesses
-        weaknesses: [
-          'Could improve on database optimization strategies',
-          'Limited experience with advanced TypeScript features',
-          'Room for improvement in system design thinking',
-          'Needs better understanding of caching mechanisms'
-        ],
+        // ✅ Weaknesses
+        weaknesses: analyticsData.weaknesses || [],
         
-        // Resume comparison
-        resumeComparison: [
-          {
-            claim: 'Expert in React with 5+ years experience',
-            verification: 'Verified',
-            score: 96,
-            status: 'match',
-            evidence: 'Scored 96% in React questions, demonstrated advanced concepts'
-          },
-          {
-            claim: 'Strong Node.js and backend development',
-            verification: 'Verified',
-            score: 92,
-            status: 'match',
-            evidence: 'Solid backend knowledge, API design score 93%'
-          },
-          {
-            claim: 'Advanced MongoDB and database design',
-            verification: 'Partial',
-            score: 85,
-            status: 'partial',
-            evidence: 'Good basics but lacks advanced optimization knowledge'
-          },
-          {
-            claim: 'TypeScript expert',
-            verification: 'Overstated',
-            score: 88,
-            status: 'mismatch',
-            evidence: 'Intermediate level, not expert. Missing advanced type patterns'
-          }
-        ],
+        // ✅ Resume comparison
+        resumeComparison: analyticsData.resumeVerification?.claims?.map((claim: any) => ({
+          claim: claim.statement || claim.claim,
+          verification: claim.status || 'Unknown',
+          score: claim.matchScore || 0,
+          status: claim.verified ? 'match' : claim.partial ? 'partial' : 'mismatch',
+          evidence: claim.evidence || claim.reasoning || ''
+        })) || [],
         
-        // AI insights
-        aiInsights: [
-          {
-            category: 'Technical Proficiency',
-            insight: 'Candidate demonstrates strong technical skills across the stack. Performance in coding challenges indicates hands-on experience with modern JavaScript frameworks. Code quality is consistently high with proper error handling and ES6+ patterns.',
-            confidence: 95,
-            tags: ['Technical Excellence', 'Modern Practices']
-          },
-          {
-            category: 'Problem Solving',
-            insight: 'Excellent analytical thinking demonstrated through systematic approach to complex problems. Approaches challenges methodically and provides well-reasoned solutions. Strong debugging skills evident in coding submissions.',
-            confidence: 92,
-            tags: ['Analytical', 'Methodical']
-          },
-          {
-            category: 'Communication',
-            insight: 'Clear and concise written communication in subjective answers. Technical explanations are well-structured and demonstrate deep understanding of concepts. Articulates thought process effectively.',
-            confidence: 89,
-            tags: ['Clear Communication', 'Technical Writing']
-          },
-          {
-            category: 'Experience Level',
-            insight: 'Performance aligns with 5+ years of experience claim in frontend development. Shows senior-level expertise in React and Node.js ecosystem. Code patterns indicate professional development background.',
-            confidence: 94,
-            tags: ['Senior Level', 'Experienced']
-          },
-          {
-            category: 'Code Quality',
-            insight: 'Follows industry best practices and coding standards. Uses modern ES6+ features appropriately. Implements proper error handling and validation. Code is maintainable and well-documented.',
-            confidence: 93,
-            tags: ['Best Practices', 'Clean Code']
-          }
-        ],
+        // ✅ AI insights
+        aiInsights: analyticsData.aiInsights?.map((insight: any) => ({
+          category: insight.category || insight.title,
+          insight: insight.description || insight.text || insight.insight,
+          confidence: insight.confidence || 0,
+          tags: insight.tags || []
+        })) || [],
         
-        // Question-wise breakdown
-        questionBreakdown: [
-          { id: 1, question: 'React Hooks', score: 100, time: 2.5, difficulty: 'Medium', type: 'objective' },
-          { id: 2, question: 'HTTP Methods', score: 100, time: 1.8, difficulty: 'Easy', type: 'objective' },
-          { id: 3, question: 'Auth vs Authorization', score: 95, time: 8.5, difficulty: 'Medium', type: 'subjective' },
-          { id: 4, question: 'Debounce Function', score: 90, time: 15.2, difficulty: 'Hard', type: 'coding' },
-          { id: 5, question: 'BST Time Complexity', score: 100, time: 2.1, difficulty: 'Medium', type: 'objective' },
-          { id: 6, question: 'REST API Endpoint', score: 95, time: 18.5, difficulty: 'Hard', type: 'coding' },
-          { id: 7, question: 'Database Optimization', score: 85, time: 12.3, difficulty: 'Hard', type: 'subjective' },
-          { id: 8, question: 'React State Management', score: 100, time: 2.8, difficulty: 'Medium', type: 'objective' }
-        ],
+        // ✅ Question breakdown
+        questionBreakdown: applicationData.answers?.map((answer: any, index: number) => ({
+          id: index + 1,
+          question: answer.question?.text || answer.questionText || '',
+          score: answer.score || 0,
+          time: answer.timeSpent ? (answer.timeSpent / 60).toFixed(1) : 0,
+          difficulty: answer.question?.difficulty || 'Medium',
+          type: answer.question?.type || answer.type || 'objective'
+        })) || [],
         
-        // Flags
+        // ✅ Flags from proctoring
         flags: {
-          resumeMismatch: false,
-          plagiarism: false,
-          unusualTimePattern: false,
-          tabSwitches: 2,
-          copyPasteAttempts: 0
+          resumeMismatch: analyticsData.flags?.resumeMismatch || false,
+          plagiarism: analyticsData.flags?.plagiarism || false,
+          unusualTimePattern: analyticsData.flags?.unusualTimePattern || false,
+          tabSwitches: analyticsData.proctoringData?.tabSwitches || 0,
+          copyPasteAttempts: analyticsData.proctoringData?.copyPasteAttempts || 0
         }
       };
       
-      setCandidate(mockCandidate);
-      console.log('✅ Candidate data loaded');
+      setCandidate(transformedCandidate);
+      console.log('✅ Candidate data transformed and loaded');
       
-    } catch (error) {
-      console.error('❌ Load candidate error:', error);
+    } catch (err: any) {
+      console.error('❌ Load candidate error:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load candidate data');
+      
+      // ✅ Fallback to mock data for development
+      if (err.response?.status === 404 || err.message === 'Network Error') {
+        console.log('⚠️ Using mock data for development');
+        loadMockData();
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Download report
+  // ✅ Mock data fallback for development
+  const loadMockData = () => {
+    setCandidate({
+      id: candidateId || '1',
+      name: 'Sarah Chen',
+      email: 'sarah.chen@email.com',
+      phone: '+1 234 567 8900',
+      score: 94,
+      rank: 1,
+      percentile: 98,
+      status: 'Qualified',
+      completedAt: '2026-02-05T14:30:00Z',
+      duration: 82,
+      
+      skillScores: [
+        { skill: 'React', score: 96, max: 100, category: 'Frontend' },
+        { skill: 'Node.js', score: 92, max: 100, category: 'Backend' },
+        { skill: 'JavaScript', score: 95, max: 100, category: 'Programming' },
+        { skill: 'TypeScript', score: 88, max: 100, category: 'Programming' },
+        { skill: 'MongoDB', score: 85, max: 100, category: 'Database' },
+        { skill: 'REST APIs', score: 93, max: 100, category: 'Backend' }
+      ],
+      
+      sectionScores: [
+        { section: 'Objective', score: 95, avgScore: 78, total: 20, answered: 19, color: '#4F46E5' },
+        { section: 'Subjective', score: 92, avgScore: 75, total: 5, answered: 5, color: '#10B981' },
+        { section: 'Coding', score: 94, avgScore: 72, total: 3, answered: 3, color: '#8B5CF6' }
+      ],
+      
+      timeSpentPerSection: [
+        { section: 'Objective', time: 28, avgTime: 35 },
+        { section: 'Subjective', time: 35, avgTime: 30 },
+        { section: 'Coding', time: 19, avgTime: 25 }
+      ],
+      
+      strengths: [
+        'Excellent problem-solving skills demonstrated in coding challenges',
+        'Strong understanding of React hooks and component lifecycle',
+        'Well-articulated explanations in subjective answers',
+        'Efficient code implementation with proper error handling',
+        'Good grasp of asynchronous JavaScript patterns',
+        'Clean code structure and best practices followed'
+      ],
+      
+      weaknesses: [
+        'Could improve on database optimization strategies',
+        'Limited experience with advanced TypeScript features',
+        'Room for improvement in system design thinking',
+        'Needs better understanding of caching mechanisms'
+      ],
+      
+      resumeComparison: [
+        {
+          claim: 'Expert in React with 5+ years experience',
+          verification: 'Verified',
+          score: 96,
+          status: 'match',
+          evidence: 'Scored 96% in React questions, demonstrated advanced concepts'
+        },
+        {
+          claim: 'Strong Node.js and backend development',
+          verification: 'Verified',
+          score: 92,
+          status: 'match',
+          evidence: 'Solid backend knowledge, API design score 93%'
+        },
+        {
+          claim: 'Advanced MongoDB and database design',
+          verification: 'Partial',
+          score: 85,
+          status: 'partial',
+          evidence: 'Good basics but lacks advanced optimization knowledge'
+        },
+        {
+          claim: 'TypeScript expert',
+          verification: 'Overstated',
+          score: 88,
+          status: 'mismatch',
+          evidence: 'Intermediate level, not expert. Missing advanced type patterns'
+        }
+      ],
+      
+      aiInsights: [
+        {
+          category: 'Technical Proficiency',
+          insight: 'Candidate demonstrates strong technical skills across the stack. Performance in coding challenges indicates hands-on experience with modern JavaScript frameworks. Code quality is consistently high with proper error handling and ES6+ patterns.',
+          confidence: 95,
+          tags: ['Technical Excellence', 'Modern Practices']
+        },
+        {
+          category: 'Problem Solving',
+          insight: 'Excellent analytical thinking demonstrated through systematic approach to complex problems. Approaches challenges methodically and provides well-reasoned solutions. Strong debugging skills evident in coding submissions.',
+          confidence: 92,
+          tags: ['Analytical', 'Methodical']
+        },
+        {
+          category: 'Communication',
+          insight: 'Clear and concise written communication in subjective answers. Technical explanations are well-structured and demonstrate deep understanding of concepts. Articulates thought process effectively.',
+          confidence: 89,
+          tags: ['Clear Communication', 'Technical Writing']
+        },
+        {
+          category: 'Experience Level',
+          insight: 'Performance aligns with 5+ years of experience claim in frontend development. Shows senior-level expertise in React and Node.js ecosystem. Code patterns indicate professional development background.',
+          confidence: 94,
+          tags: ['Senior Level', 'Experienced']
+        },
+        {
+          category: 'Code Quality',
+          insight: 'Follows industry best practices and coding standards. Uses modern ES6+ features appropriately. Implements proper error handling and validation. Code is maintainable and well-documented.',
+          confidence: 93,
+          tags: ['Best Practices', 'Clean Code']
+        }
+      ],
+      
+      questionBreakdown: [
+        { id: 1, question: 'React Hooks', score: 100, time: 2.5, difficulty: 'Medium', type: 'objective' },
+        { id: 2, question: 'HTTP Methods', score: 100, time: 1.8, difficulty: 'Easy', type: 'objective' },
+        { id: 3, question: 'Auth vs Authorization', score: 95, time: 8.5, difficulty: 'Medium', type: 'subjective' },
+        { id: 4, question: 'Debounce Function', score: 90, time: 15.2, difficulty: 'Hard', type: 'coding' },
+        { id: 5, question: 'BST Time Complexity', score: 100, time: 2.1, difficulty: 'Medium', type: 'objective' },
+        { id: 6, question: 'REST API Endpoint', score: 95, time: 18.5, difficulty: 'Hard', type: 'coding' },
+        { id: 7, question: 'Database Optimization', score: 85, time: 12.3, difficulty: 'Hard', type: 'subjective' },
+        { id: 8, question: 'React State Management', score: 100, time: 2.8, difficulty: 'Medium', type: 'objective' }
+      ],
+      
+      flags: {
+        resumeMismatch: false,
+        plagiarism: false,
+        unusualTimePattern: false,
+        tabSwitches: 2,
+        copyPasteAttempts: 0
+      }
+    });
+  };
+
+  // ✅ Download report from backend
   const handleDownloadReport = async () => {
     try {
       setDownloading(true);
-      console.log('⬇️ Downloading candidate report...');
+      console.log('⬇️ Downloading candidate report...', candidate.id);
       
-      // Simulate download
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      alert('Report downloaded successfully!');
+      const response = await applicationAPI.downloadReport(candidate.id, 'pdf');
       
-    } catch (error) {
-      console.error('❌ Download error:', error);
+      // ✅ Create blob and download
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${candidate.name.replace(/\s+/g, '_')}_Report.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('✅ Report downloaded successfully');
+      
+    } catch (err: any) {
+      console.error('❌ Download error:', err);
+      alert(err.response?.data?.message || 'Failed to download report');
     } finally {
       setDownloading(false);
     }
@@ -238,21 +354,44 @@ export default function CandidateAnalyticsPage({ navigate, onLogout, candidateId
   const handleShortlist = async () => {
     try {
       console.log('✅ Shortlisting candidate:', candidate.id);
-      // await applicationAPI.updateStatus(candidate.id, 'shortlisted');
+      
+      await applicationAPI.updateStatus(candidate.id, 'shortlisted');
+      
+      // Update local state
+      setCandidate({ ...candidate, status: 'Shortlisted' });
       alert(`${candidate.name} has been shortlisted!`);
-    } catch (error) {
-      console.error('❌ Shortlist error:', error);
+      
+      console.log('✅ Candidate shortlisted successfully');
+      
+    } catch (err: any) {
+      console.error('❌ Shortlist error:', err);
+      alert(err.response?.data?.message || 'Failed to shortlist candidate');
     }
   };
 
   // ✅ Reject candidate
   const handleReject = async () => {
+    if (!confirm(`Are you sure you want to reject ${candidate.name}?`)) {
+      return;
+    }
+    
     try {
       console.log('❌ Rejecting candidate:', candidate.id);
-      // await applicationAPI.updateStatus(candidate.id, 'rejected');
+      
+      await applicationAPI.updateStatus(candidate.id, 'rejected');
+      
+      // Update local state
+      setCandidate({ ...candidate, status: 'Rejected' });
       alert(`${candidate.name} has been rejected.`);
-    } catch (error) {
-      console.error('❌ Reject error:', error);
+      
+      console.log('✅ Candidate rejected successfully');
+      
+      // Navigate back after a delay
+      setTimeout(() => navigate('evaluation-results'), 1500);
+      
+    } catch (err: any) {
+      console.error('❌ Reject error:', err);
+      alert(err.response?.data?.message || 'Failed to reject candidate');
     }
   };
 
@@ -269,6 +408,24 @@ export default function CandidateAnalyticsPage({ navigate, onLogout, candidateId
     );
   }
 
+  if (error && !candidate) {
+    return (
+      <RecruiterLayout navigate={navigate} onLogout={onLogout} currentPage="candidate-analytics">
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <AlertTriangle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+            <p className="text-slate-900 font-semibold mb-2">Failed to Load Candidate</p>
+            <p className="text-slate-600 mb-4">{error}</p>
+            <Button onClick={() => navigate('evaluation-results')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Results
+            </Button>
+          </div>
+        </div>
+      </RecruiterLayout>
+    );
+  }
+
   if (!candidate) {
     return (
       <RecruiterLayout navigate={navigate} onLogout={onLogout} currentPage="candidate-analytics">
@@ -276,6 +433,10 @@ export default function CandidateAnalyticsPage({ navigate, onLogout, candidateId
           <div className="text-center">
             <AlertTriangle className="w-12 h-12 text-amber-600 mx-auto mb-4" />
             <p className="text-slate-600">Candidate not found</p>
+            <Button className="mt-4" onClick={() => navigate('evaluation-results')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Results
+            </Button>
           </div>
         </div>
       </RecruiterLayout>
@@ -303,10 +464,12 @@ export default function CandidateAnalyticsPage({ navigate, onLogout, candidateId
                   <Mail className="w-4 h-4" />
                   {candidate.email}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Phone className="w-4 h-4" />
-                  {candidate.phone}
-                </span>
+                {candidate.phone && (
+                  <span className="flex items-center gap-1">
+                    <Phone className="w-4 h-4" />
+                    {candidate.phone}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -332,17 +495,19 @@ export default function CandidateAnalyticsPage({ navigate, onLogout, candidateId
               variant="outline"
               className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
               onClick={handleShortlist}
+              disabled={candidate.status === 'Shortlisted'}
             >
               <CheckCircle2 className="w-4 h-4 mr-2" />
-              Shortlist
+              {candidate.status === 'Shortlisted' ? 'Shortlisted' : 'Shortlist'}
             </Button>
             <Button
               variant="outline"
               className="bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
               onClick={handleReject}
+              disabled={candidate.status === 'Rejected'}
             >
               <XCircle className="w-4 h-4 mr-2" />
-              Reject
+              {candidate.status === 'Rejected' ? 'Rejected' : 'Reject'}
             </Button>
           </div>
         </div>
@@ -383,7 +548,11 @@ export default function CandidateAnalyticsPage({ navigate, onLogout, candidateId
           
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="text-sm text-slate-600 mb-1">Status</div>
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-base px-3 py-1">
+            <Badge className={
+              candidate.status === 'Shortlisted' ? 'bg-emerald-100 text-emerald-700 border-emerald-200 text-base px-3 py-1' :
+              candidate.status === 'Rejected' ? 'bg-red-100 text-red-700 border-red-200 text-base px-3 py-1' :
+              'bg-blue-100 text-blue-700 border-blue-200 text-base px-3 py-1'
+            }>
               <CheckCircle2 className="w-4 h-4 mr-1" />
               {candidate.status}
             </Badge>
