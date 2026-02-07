@@ -5,6 +5,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 
+
+import { AssessmentDetailsPage } from './pages/assessments/AssessmentDetailsPage';
+import { TakeAssessmentPage } from './pages/public/TakeAssessmentPage';
+
 // Dashboard
 import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { ResumeScreeningPage } from './pages/resume/ResumeScreeningPage';
@@ -64,6 +68,19 @@ function App() {
               <JobsPage />
             </ProtectedRoute>
           }
+        />
+        <Route
+          path="/assessments/:id"
+          element={
+            <ProtectedRoute>
+              <AssessmentDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/take-assessment/:link"
+          element={<TakeAssessmentPage />}
         />
 
         <Route

@@ -150,7 +150,7 @@ export const CreateJobPage: React.FC = () => {
           {/* JD Parser */}
           <Card>
             <h2 className="text-lg font-semibold text-slate-900 mb-4">
-              🤖 AI Job Description Parser
+              AI Job Description Parser
             </h2>
             <div className="space-y-4">
               <div>
@@ -441,7 +441,7 @@ export const CreateJobPage: React.FC = () => {
           {/* Auto-Evaluation Settings */}
           <Card className="bg-purple-50 border-purple-200">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">
-              🤖 AI Auto-Evaluation Settings
+              AI Auto-Evaluation Settings
             </h2>
             
             <div className="space-y-4">
@@ -492,7 +492,7 @@ export const CreateJobPage: React.FC = () => {
                   id="autoShortlist"
                 />
                 <label htmlFor="autoShortlist" className="text-sm text-slate-700 cursor-pointer">
-                  ✅ Automatically shortlist candidates above minimum score
+                  Automatically shortlist candidates above minimum score
                 </label>
               </div>
 

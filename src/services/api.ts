@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -53,15 +53,6 @@ export const jobAPI = {
   getStats: () => api.get('/jobs/stats'),
 };
 
-// Assessment API
-export const assessmentAPI = {
-  getAssessments: (params?: any) => api.get('/assessments', { params }),
-  getAssessmentById: (id: string) => api.get(`/assessments/${id}`),
-  generateQuestions: (jobId: string, config: any) => 
-    api.post('/assessments/generate', { jobId, ...config }),
-  updateAssessment: (id: string, data: any) => api.put(`/assessments/${id}`, data),
-  deleteAssessment: (id: string) => api.delete(`/assessments/${id}`),
-};
 
 // Application API (UPDATED)
 export const applicationAPI = {
@@ -126,6 +117,29 @@ export const resumeAPI = {
   
   checkSkillMismatch: (applicationId: string) => 
     api.post(`/resumes/${applicationId}/check-mismatch`),
+};
+
+
+// Add to existing api.ts
+
+// Public Assessment API (no auth required)
+export const publicAssessmentAPI = {
+  getByLink: (link: string) => 
+    axios.get(`${API_BASE_URL}/assessments/public/${link}`),
+  
+  submit: (link: string, data: any) => 
+    axios.post(`${API_BASE_URL}/assessments/public/${link}/submit`, data),
+};
+
+// Assessment API
+export const assessmentAPI = {
+  getAssessments: (params?: any) => api.get('/assessments', { params }),
+  getAssessmentById: (id: string) => api.get(`/assessments/${id}`),
+  generateQuestions: (jobId: string, config: any) => 
+    api.post('/assessments/generate', { jobId, ...config }),
+  updateAssessment: (id: string, data: any) => api.put(`/assessments/${id}`, data),
+  deleteAssessment: (id: string) => api.delete(`/assessments/${id}`),
+  toggleLinkStatus: (id: string) => api.patch(`/assessments/${id}/toggle-link`),
 };
 
 
