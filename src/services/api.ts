@@ -1,3 +1,4 @@
+// src/services/api.ts - FINAL FIXED VERSION
 import axios from 'axios';
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
@@ -37,15 +38,18 @@ api.interceptors.response.use(
   }
 );
 
-// Auth API
+// ===== AUTH API =====
 export const authAPI = {
   login: (credentials: any) => api.post('/auth/login', credentials),
   register: (userData: any) => api.post('/auth/register', userData),
   getProfile: () => api.get('/auth/profile'),
+  updateProfile: (data: any) => api.put('/auth/profile', data),
+  updatePassword: (data: any) => api.put('/auth/password', data),
+  me: () => api.get('/auth/me'), // ✅ Added for token verification
 };
 
-// Job API
-export const jobAPI = {
+// ===== JOB API =====
+export const jobsAPI = {
   getJobs: (params?: any) => api.get('/jobs', { params }),
   getJobById: (id: string) => api.get(`/jobs/${id}`),
   createJob: (jobData: any) => api.post('/jobs', jobData),
@@ -55,13 +59,15 @@ export const jobAPI = {
   getStats: () => api.get('/jobs/stats'),
 };
 
+// Backward compatibility
+export const jobAPI = jobsAPI;
 
-// Application API (UPDATED)
+// ===== APPLICATION API =====
 export const applicationAPI = {
   getApplications: (params?: any) => api.get('/applications', { params }),
+  getMyApplications: () => api.get('/applications/my-applications'),
   getApplicationById: (id: string) => api.get(`/applications/${id}`),
-  submitApplication: (applicationId: string, answers: any[]) => 
-    api.post('/applications/submit', { applicationId, answers }),
+  submitApplication: (data: any, submissionData?: { assessmentId: any; answers: { questionId: string; answer: any; }[]; timeSpent: number; }) => api.post('/applications/submit', data),
   updateStatus: (id: string, status: string) => 
     api.patch(`/applications/${id}/status`, { status }),
   bulkUpdate: (ids: string[], status: string) => 
@@ -74,27 +80,28 @@ export const applicationAPI = {
     }),
 };
 
-// Analytics API
-export const analyticsAPI = {
-  getJobAnalytics: (jobId: string) => api.get(`/analytics/jobs/${jobId}`),
-  getLeaderboard: (jobId: string) => api.get(`/leaderboard/${jobId}`),
-  exportData: (jobId: string, format: string) => 
-    api.get(`/analytics/export/${jobId}`, { 
-      params: { format },
-      responseType: 'blob' 
-    }),
+// ===== ASSESSMENT API =====
+export const assessmentAPI = {
+  getAssessments: (params?: any) => api.get('/assessments', { params }),
+  getAssessmentById: (id: string) => api.get(`/assessments/${id}`),
+  generateQuestions: (jobId: string, config: any) => 
+    api.post('/assessments/generate', { jobId, ...config }),
+  updateAssessment: (id: string, data: any) => api.put(`/assessments/${id}`, data),
+  deleteAssessment: (id: string) => api.delete(`/assessments/${id}`),
+  toggleLinkStatus: (id: string) => api.patch(`/assessments/${id}/toggle-link`),
+  createAssessment: (data: any) => api.post('/assessments', data),
 };
 
-// Settings API
-export const settingsAPI = {
-  updateProfile: (data: any) => api.put('/auth/profile', data),
-  updatePassword: (data: any) => api.put('/auth/password', data),
-  updateCompany: (data: any) => api.put('/auth/company', data),
+// ===== PUBLIC ASSESSMENT API (no auth required) =====
+export const publicAssessmentAPI = {
+  getByLink: (link: string) => 
+    axios.get(`${API_BASE_URL}/assessments/public/${link}`),
+  
+  submit: (link: string, data: any) => 
+    axios.post(`${API_BASE_URL}/assessments/public/${link}/submit`, data),
 };
 
-// Add to existing api.ts
-
-// Resume API (NEW)
+// ===== RESUME API =====
 export const resumeAPI = {
   uploadAndScreen: (jobId: string, file: File) => {
     const formData = new FormData();
@@ -121,28 +128,35 @@ export const resumeAPI = {
     api.post(`/resumes/${applicationId}/check-mismatch`),
 };
 
-
-// Add to existing api.ts
-
-// Public Assessment API (no auth required)
-export const publicAssessmentAPI = {
-  getByLink: (link: string) => 
-    axios.get(`${API_BASE_URL}/assessments/public/${link}`),
-  
-  submit: (link: string, data: any) => 
-    axios.post(`${API_BASE_URL}/assessments/public/${link}/submit`, data),
+// ===== ANALYTICS API =====
+export const analyticsAPI = {
+  getJobAnalytics: (jobId: string) => api.get(`/analytics/jobs/${jobId}`),
+  getDashboardStats: () => api.get('/analytics/dashboard'),
+  getLeaderboard: (jobId: string) => api.get(`/leaderboard/${jobId}`),
+  exportData: (jobId: string, format: string) => 
+    api.get(`/analytics/export/${jobId}`, { 
+      params: { format },
+      responseType: 'blob' 
+    }),
 };
 
-// Assessment API
-export const assessmentAPI = {
-  getAssessments: (params?: any) => api.get('/assessments', { params }),
-  getAssessmentById: (id: string) => api.get(`/assessments/${id}`),
-  generateQuestions: (jobId: string, config: any) => 
-    api.post('/assessments/generate', { jobId, ...config }),
-  updateAssessment: (id: string, data: any) => api.put(`/assessments/${id}`, data),
-  deleteAssessment: (id: string) => api.delete(`/assessments/${id}`),
-  toggleLinkStatus: (id: string) => api.patch(`/assessments/${id}/toggle-link`),
+// ===== SETTINGS API =====
+export const settingsAPI = {
+  updateProfile: (data: any) => api.put('/auth/profile', data),
+  updatePassword: (data: any) => api.put('/auth/password', data),
+  updateCompany: (data: any) => api.put('/auth/company', data),
 };
 
+// ===== CANDIDATES API =====
+export const candidatesAPI = {
+  getCandidates: (params?: any) => api.get('/candidates', { params }),
+  getCandidateById: (id: string) => api.get(`/candidates/${id}`),
+  updateCandidateStatus: (id: string, status: string) => 
+    api.patch(`/candidates/${id}/status`, { status }),
+};
 
+// ✅ EXPORT DEFAULT (FIXES THE ERROR)
 export default api;
+
+// ✅ ALSO EXPORT AS NAMED EXPORT
+export { api };
