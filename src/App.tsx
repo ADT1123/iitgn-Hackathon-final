@@ -1,11 +1,11 @@
 // src/App.tsx - FIXED VERSION (Remove user/onLogout props)
 import React, { useState, useEffect } from 'react';
-import { 
-  BrowserRouter as Router, 
-  Routes, 
-  Route, 
-  Navigate, 
-  useNavigate 
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate
 } from 'react-router-dom';
 import { Toaster } from './components/ui/toaster.tsx'; // Capital T
 
@@ -35,16 +35,17 @@ import { CandidateProfile } from './pages/candidate/CandidateProfile';
 
 // ===== LAYOUT =====
 import { MainLayout } from './components/layout/MainLayout';
+import { CandidateLayout } from './components/layout/CandidateLayout';
 import { authAPI } from './services/api';
 
 // ===== PROTECTED ROUTE COMPONENT =====
-const ProtectedRoute: React.FC<{ children: React.ReactNode; role?: string }> = ({ 
-  children, 
-  role 
+const ProtectedRoute: React.FC<{ children: React.ReactNode; role?: string }> = ({
+  children,
+  role
 }) => {
   const token = localStorage.getItem('token');
   const user = localStorage.getItem('user');
-  
+
   if (!token || !user) {
     return <Navigate to="/login" replace />;
   }
@@ -55,7 +56,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; role?: string }> = (
       return <Navigate to="/login" replace />;
     }
   }
-  
+
   return <>{children}</>;
 };
 
@@ -68,12 +69,12 @@ function AppContent() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-    
+
     if (token && storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
       setLoading(false);
-      
+
       // Verify token
       authAPI.me()
         .then((res) => {
@@ -93,7 +94,7 @@ function AppContent() {
     localStorage.setItem('token', userData.token);
     localStorage.setItem('user', JSON.stringify(userData.user));
     setUser(userData.user);
-    
+
     if (userData.user.role === 'candidate') {
       navigate('/candidate/dashboard');
     } else {
@@ -116,200 +117,200 @@ function AppContent() {
     <>
       <Routes>
         {/* PUBLIC ROUTES */}
-        <Route 
-          path="/login" 
+        <Route
+          path="/login"
           element={
             !user ? (
               <LoginPage onLogin={handleLogin} />
             ) : (
               <Navigate to={user.role === 'candidate' ? '/candidate/dashboard' : '/dashboard'} replace />
             )
-          } 
+          }
         />
-        <Route 
-          path="/signup" 
+        <Route
+          path="/signup"
           element={
             !user ? (
               <SignupPage onLogin={handleLogin} />
             ) : (
               <Navigate to={user.role === 'candidate' ? '/candidate/dashboard' : '/dashboard'} replace />
             )
-          } 
+          }
         />
         <Route path="/take-assessment/:link" element={<TakeAssessmentPage />} />
 
         {/* CANDIDATE ROUTES - ✅ REMOVED user/onLogout props */}
-        <Route 
-          path="/candidate/dashboard" 
+        <Route
+          path="/candidate/dashboard"
           element={
             <ProtectedRoute role="candidate">
-              <MainLayout>
+              <CandidateLayout>
                 <CandidateDashboard />
-              </MainLayout>
+              </CandidateLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/candidate/jobs" 
+        <Route
+          path="/candidate/jobs"
           element={
             <ProtectedRoute role="candidate">
-              <MainLayout>
+              <CandidateLayout>
                 <CandidateJobs />
-              </MainLayout>
+              </CandidateLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/candidate/assessment/:assessmentId" 
+        <Route
+          path="/candidate/assessment/:assessmentId"
           element={
             <ProtectedRoute role="candidate">
-              <MainLayout>
+              <CandidateLayout>
                 <CandidateAssessment />
-              </MainLayout>
+              </CandidateLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/candidate/applications" 
+        <Route
+          path="/candidate/applications"
           element={
             <ProtectedRoute role="candidate">
-              <MainLayout>
+              <CandidateLayout>
                 <CandidateApplications />
-              </MainLayout>
+              </CandidateLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/candidate/profile" 
+        <Route
+          path="/candidate/profile"
           element={
             <ProtectedRoute role="candidate">
-              <MainLayout>
+              <CandidateLayout>
                 <CandidateProfile />
-              </MainLayout>
+              </CandidateLayout>
             </ProtectedRoute>
-          } 
+          }
         />
 
         {/* RECRUITER ROUTES - ✅ REMOVED user/onLogout props */}
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <DashboardPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/resume-screening" 
+        <Route
+          path="/resume-screening"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <ResumeScreeningPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/jobs" 
+        <Route
+          path="/jobs"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <JobsPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/jobs/create" 
+        <Route
+          path="/jobs/create"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <CreateJobPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/jobs/:id" 
+        <Route
+          path="/jobs/:id"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <JobDetailsPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/assessments" 
+        <Route
+          path="/assessments"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <AssessmentsPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/assessments/create" 
+        <Route
+          path="/assessments/create"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <CreateAssessmentPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/assessments/:id" 
+        <Route
+          path="/assessments/:id"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <AssessmentDetailsPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/candidates" 
+        <Route
+          path="/candidates"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <CandidatesPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/candidates/:id" 
+        <Route
+          path="/candidates/:id"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <CandidateDetailsPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/analytics" 
+        <Route
+          path="/analytics"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <AnalyticsPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/settings" 
+        <Route
+          path="/settings"
           element={
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <SettingsPage />
               </MainLayout>
             </ProtectedRoute>
-          } 
+          }
         />
 
         {/* DEFAULT ROUTES */}

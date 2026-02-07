@@ -1,10 +1,10 @@
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  Briefcase, 
-  FileText, 
-  Users, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Briefcase,
+  FileText,
+  Users,
+  BarChart3,
   Settings,
   LogOut
 } from 'lucide-react';
@@ -23,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
     { icon: Briefcase, label: 'Jobs', path: '/jobs' },
     { icon: FileText, label: 'Assessments', path: '/assessments' },
     { icon: Users, label: 'Candidates', path: '/candidates' },
+    { icon: FileText, label: 'Resume Screening', path: '/resume-screening' }, // Added Resume Screening
     { icon: BarChart3, label: 'Analytics', path: '/analytics' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
@@ -43,11 +44,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
           <button
             key={item.path}
             onClick={() => navigate(item.path)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              isActive(item.path)
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive(item.path)
                 ? 'bg-blue-50 text-blue-700 font-medium'
                 : 'text-slate-600 hover:bg-slate-50'
-            }`}
+              }`}
           >
             <item.icon className="w-5 h-5" />
             <span>{item.label}</span>

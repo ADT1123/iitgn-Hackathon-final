@@ -5,16 +5,15 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { applicationAPI, jobsAPI } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Briefcase, 
-  TrendingUp, 
-  Clock, 
-  CheckCircle, 
+import {
+  Briefcase,
+  Clock,
+  CheckCircle,
   XCircle,
   Loader2,
   ArrowRight,
-  MapPin,
-  Building2
+  TrendingUp,
+  Activity
 } from 'lucide-react';
 
 export const CandidateDashboard: React.FC = () => {
@@ -28,6 +27,7 @@ export const CandidateDashboard: React.FC = () => {
   const [myApplications, setMyApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     fetchDashboardData();
@@ -36,26 +36,21 @@ export const CandidateDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch candidate's applications
+
       const appsRes = await applicationAPI.getApplications();
       const apps = appsRes.data.data || appsRes.data || [];
-      
+
       setMyApplications(apps);
-      
-      // Calculate stats
+
       setStats({
         totalApplications: apps.length,
-        qualified: apps.filter((a: any) => a.status === 'shortlisted').length,
-        pending: apps.filter((a: any) => 
-          a.status === 'pending' || 
-          a.status === 'in-progress' || 
-          a.status === 'completed'
+        qualified: apps.filter((a: any) => a.status === 'shortlisted' || a.status === 'qualified').length,
+        pending: apps.filter((a: any) =>
+          ['pending', 'in-progress', 'submitted'].includes(a.status)
         ).length,
         rejected: apps.filter((a: any) => a.status === 'rejected').length
       });
-      
-      // Fetch recent jobs
+
       const jobsRes = await jobsAPI.getJobs();
       setRecentJobs((jobsRes.data.data || jobsRes.data || []).slice(0, 3));
     } catch (error) {
@@ -74,184 +69,167 @@ export const CandidateDashboard: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
+    <div className="space-y-8">
+      {/* Welcome Section */}
+      <div className="bg-white rounded-lg p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome back!</h1>
-          <p className="text-slate-600">Discover new opportunities and track your applications.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Hello, {user.name || 'Candidate'}</h1>
+          <p className="text-slate-600 mt-1">Ready to take the next step in your career?</p>
         </div>
-        <Button 
-          variant="primary" 
-          size="lg"
+        <Button
+          variant="primary"
           onClick={() => navigate('/candidate/jobs')}
+          className="w-full md:w-auto"
         >
           <Briefcase className="w-4 h-4 mr-2" />
-          Browse Jobs
+          Browse Open Positions
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 mb-1">Total Applications</p>
-              <p className="text-3xl font-bold text-slate-900">{stats.totalApplications}</p>
-            </div>
-            <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Briefcase className="w-7 h-7 text-blue-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 mb-1">Qualified</p>
-              <p className="text-3xl font-bold text-emerald-600">{stats.qualified}</p>
-            </div>
-            <div className="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center">
-              <CheckCircle className="w-7 h-7 text-emerald-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 mb-1">In Progress</p>
-              <p className="text-3xl font-bold text-amber-600">{stats.pending}</p>
-            </div>
-            <div className="w-14 h-14 bg-amber-100 rounded-xl flex items-center justify-center">
-              <Clock className="w-7 h-7 text-amber-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-slate-600 mb-1">Rejected</p>
-              <p className="text-3xl font-bold text-red-600">{stats.rejected}</p>
-            </div>
-            <div className="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center">
-              <XCircle className="w-7 h-7 text-red-600" />
-            </div>
-          </div>
-        </Card>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatsCard
+          label="Total Applications"
+          value={stats.totalApplications}
+          icon={Activity}
+          color="blue"
+        />
+        <StatsCard
+          label="In Progress"
+          value={stats.pending}
+          icon={Clock}
+          color="amber"
+        />
+        <StatsCard
+          label="Qualified"
+          value={stats.qualified}
+          icon={CheckCircle}
+          color="emerald"
+        />
+        <StatsCard
+          label="Not Selected"
+          value={stats.rejected}
+          icon={XCircle}
+          color="red"
+        />
       </div>
 
-      {/* Recent Applications */}
-      {myApplications.length > 0 && (
-        <Card>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-slate-900">Recent Applications</h2>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate('/candidate/applications')}
-            >
-              View All
-              <ArrowRight className="w-4 h-4 ml-1" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Recent Applications */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">Recent Applications</h2>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/candidate/applications')}>
+              View All <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
-          
+
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+            {myApplications.length > 0 ? (
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-6 py-3 font-medium text-slate-700">Role</th>
+                    <th className="px-6 py-3 font-medium text-slate-700">Company</th>
+                    <th className="px-6 py-3 font-medium text-slate-700">Date</th>
+                    <th className="px-6 py-3 font-medium text-slate-700">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {myApplications.slice(0, 5).map((app: any) => (
+                    <tr key={app._id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-slate-900">{app.job?.title || 'Unknown Role'}</td>
+                      <td className="px-6 py-4 text-slate-600">{app.job?.company || 'Unknown Company'}</td>
+                      <td className="px-6 py-4 text-slate-600">{new Date(app.createdAt).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={app.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-8 text-center text-slate-500">
+                No applications yet. Start by browsing jobs!
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recommended Jobs (Compact) */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">New Opportunities</h2>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/candidate/jobs')}>
+              View All
+            </Button>
+          </div>
+
           <div className="space-y-3">
-            {myApplications.slice(0, 3).map((app: any) => (
-              <div 
-                key={app._id}
-                className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                onClick={() => navigate('/candidate/applications')}
+            {recentJobs.map((job: any) => (
+              <div
+                key={job._id}
+                onClick={() => navigate('/candidate/jobs')}
+                className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                    <Briefcase className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-900">{app.job?.title || 'Job Position'}</h3>
-                    <p className="text-sm text-slate-600">{app.job?.company || 'Company'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {app.totalScore && (
-                    <div className="text-right mr-4">
-                      <p className="text-sm text-slate-600">Score</p>
-                      <p className="text-lg font-bold text-blue-600">{app.totalScore}%</p>
-                    </div>
-                  )}
-                  <Badge
-                    variant={
-                      app.status === 'shortlisted' ? 'success' :
-                      app.status === 'rejected' ? 'danger' :
-                      app.status === 'completed' ? 'info' : 'warning'
-                    }
-                  >
-                    {app.status}
-                  </Badge>
+                <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">{job.title}</h3>
+                <p className="text-sm text-slate-500 mt-1">{job.department} • {job.location}</p>
+                <div className="mt-3 flex items-center justify-between">
+                  <Badge variant="secondary">{job.type}</Badge>
+                  <span className="text-xs font-medium text-blue-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
+                    View Details <ArrowRight className="w-3 h-3 ml-1" />
+                  </span>
                 </div>
               </div>
             ))}
+            {recentJobs.length === 0 && (
+              <div className="p-6 bg-slate-50 rounded-lg text-center text-slate-500 text-sm">
+                No new jobs available right now.
+              </div>
+            )}
           </div>
-        </Card>
-      )}
-
-      {/* Available Jobs */}
-      <Card>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-slate-900">Available Jobs</h2>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => navigate('/candidate/jobs')}
-          >
-            View All
-            <ArrowRight className="w-4 h-4 ml-1" />
-          </Button>
         </div>
-        
-        {recentJobs.length === 0 ? (
-          <div className="text-center py-12">
-            <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500">No jobs available at the moment</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {recentJobs.map((job: any) => (
-              <Card 
-                key={job._id}
-                onClick={() => navigate('/candidate/jobs')}
-                className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-blue-200"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Briefcase className="w-6 h-6 text-white" />
-                    </div>
-                    <Badge variant="info">{job.type || 'Full-time'}</Badge>
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
-                      {job.title}
-                    </h3>
-                    <p className="text-sm text-slate-600 mt-1 line-clamp-1">
-                      {job.department || 'Engineering'}
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 text-sm text-slate-500">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      {job.location || 'Remote'}
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </Card>
+      </div>
     </div>
+  );
+};
+
+const StatsCard = ({ label, value, icon: Icon, color }: any) => {
+  const colorStyles = {
+    blue: 'bg-blue-50 text-blue-600',
+    amber: 'bg-amber-50 text-amber-600',
+    emerald: 'bg-emerald-50 text-emerald-600',
+    red: 'bg-red-50 text-red-600',
+  }[color as string] || 'bg-slate-50 text-slate-600';
+
+  return (
+    <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-500">{label}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
+        </div>
+        <div className={`p-3 rounded-xl ${colorStyles}`}>
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const styles = {
+    shortlisted: 'bg-emerald-100 text-emerald-800',
+    qualified: 'bg-emerald-100 text-emerald-800',
+    rejected: 'bg-red-100 text-red-800',
+    pending: 'bg-amber-100 text-amber-800',
+    processing: 'bg-blue-100 text-blue-800',
+    completed: 'bg-purple-100 text-purple-800',
+  }[status.toLowerCase()] || 'bg-slate-100 text-slate-800';
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${styles}`}>
+      {status}
+    </span>
   );
 };

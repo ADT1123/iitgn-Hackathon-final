@@ -3,20 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Input } from '@/components/ui/Input';
 import { jobsAPI, applicationAPI } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Briefcase, 
-  MapPin, 
-  Building2, 
-  Clock, 
-  DollarSign,
+import {
+  Briefcase,
+  MapPin,
+  Clock,
   Search,
-  Filter,
-  Loader2,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  Filter
 } from 'lucide-react';
 
 export const CandidateJobs: React.FC = () => {
@@ -59,21 +55,23 @@ export const CandidateJobs: React.FC = () => {
 
   const handleApply = (job: any) => {
     if (job.assessment) {
+      // Direct navigation to assessment
       navigate(`/candidate/assessment/${job.assessment}`);
     } else {
-      alert('No assessment linked to this job');
+      // Fallback for jobs without assessment (should generally have one)
+      alert('This job does not have an active assessment configured yet. Please check back later.');
     }
   };
 
   const filteredJobs = jobs.filter(job => {
-    const matchesSearch = 
+    const matchesSearch =
       job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.department?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesLocation = locationFilter === 'all' || job.location === locationFilter;
     const matchesType = typeFilter === 'all' || job.type === typeFilter;
-    
+
     return matchesSearch && matchesLocation && matchesType;
   });
 
@@ -83,7 +81,7 @@ export const CandidateJobs: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -91,133 +89,109 @@ export const CandidateJobs: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Browse Jobs</h1>
-        <p className="text-slate-600">Find your dream job and apply now</p>
+      <div className="bg-white p-6 rounded-lg border border-slate-200">
+        <h1 className="text-2xl font-bold text-slate-900">Browse Open Roles</h1>
+        <p className="text-slate-600 mt-1">Find and apply for positions that match your skills.</p>
       </div>
 
       {/* Filters */}
-      <Card>
+      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm sticky top-20 z-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search jobs, skills, departments..."
+              placeholder="Search by title, department, or skill..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
 
-          <select
-            value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
-            className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Locations</option>
-            {uniqueLocations.map((loc: any) => (
-              <option key={loc} value={loc}>{loc}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <select
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+            >
+              <option value="all">All Locations</option>
+              {uniqueLocations.map((loc: any) => (
+                <option key={loc} value={loc}>{loc}</option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Types</option>
-            {uniqueTypes.map((type: any) => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm appearance-none bg-white"
+            >
+              <option value="all">All Employment Types</option>
+              {uniqueTypes.map((type: any) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
         </div>
-      </Card>
+      </div>
 
       {/* Jobs Grid */}
       {filteredJobs.length === 0 ? (
-        <Card className="text-center py-12">
-          <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <p className="text-slate-500">No jobs found matching your criteria</p>
-        </Card>
+        <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+          <Briefcase className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-slate-900">No jobs found</h3>
+          <p className="text-slate-500">Try adjusting your search criteria.</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-4">
           {filteredJobs.map((job: any) => {
             const applied = hasApplied(job._id);
-            
+
             return (
-              <Card 
+              <div
                 key={job._id}
-                className="hover:shadow-lg transition-all border-2 border-transparent hover:border-blue-200"
+                className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row gap-6 items-start md:items-center"
               >
-                <div className="space-y-4">
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Briefcase className="w-7 h-7 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900 mb-1">
-                          {job.title}
-                        </h3>
-                        <p className="text-sm text-slate-600">{job.department}</p>
-                      </div>
-                    </div>
-                    {applied && (
-                      <Badge variant="success" className="flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" />
-                        Applied
-                      </Badge>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-bold text-slate-900">{job.title}</h3>
+                    {applied && <Badge variant="success" className="text-xs">Applied</Badge>}
+                    <Badge variant="secondary" className="text-xs">{job.type}</Badge>
+                  </div>
+
+                  <div className="flex flex-wrap gap-4 text-sm text-slate-600 mb-4">
+                    <span className="flex items-center gap-1">
+                      <Briefcase className="w-4 h-4 text-slate-400" />
+                      {job.department}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4 text-slate-400" />
+                      {job.location}
+                    </span>
+                    {job.salaryRange && (
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium text-slate-900">{job.salaryRange}</span>
+                      </span>
                     )}
                   </div>
 
-                  {/* Description */}
-                  <p className="text-sm text-slate-600 line-clamp-2">
-                    {job.description || 'No description available'}
+                  <p className="text-sm text-slate-600 line-clamp-2 mb-4">
+                    {job.description}
                   </p>
 
-                  {/* Details */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <MapPin className="w-4 h-4" />
-                      <span>{job.location || 'Not specified'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Clock className="w-4 h-4" />
-                      <span>{job.type || 'Full-time'}</span>
-                    </div>
-                    {job.experienceLevel && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Building2 className="w-4 h-4" />
-                        <span>{job.experienceLevel}</span>
-                      </div>
-                    )}
-                    {job.salaryRange && (
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <DollarSign className="w-4 h-4" />
-                        <span>{job.salaryRange}</span>
-                      </div>
-                    )}
+                  <div className="flex flex-wrap gap-2">
+                    {job.requiredSkills?.slice(0, 5).map((skill: string, idx: number) => (
+                      <span key={idx} className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-md">
+                        {skill}
+                      </span>
+                    ))}
                   </div>
+                </div>
 
-                  {/* Skills */}
-                  {job.requiredSkills && job.requiredSkills.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {job.requiredSkills.slice(0, 4).map((skill: string, idx: number) => (
-                        <Badge key={idx} variant="info">
-                          {skill}
-                        </Badge>
-                      ))}
-                      {job.requiredSkills.length > 4 && (
-                        <Badge variant="default">
-                          +{job.requiredSkills.length - 4} more
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Action Button */}
+                <div className="w-full md:w-auto flex flex-col items-end gap-3 min-w-[150px]">
                   <Button
                     variant={applied ? "secondary" : "primary"}
                     className="w-full"
@@ -227,17 +201,20 @@ export const CandidateJobs: React.FC = () => {
                     {applied ? (
                       <>
                         <CheckCircle className="w-4 h-4 mr-2" />
-                        Already Applied
+                        Status
                       </>
                     ) : (
                       <>
-                        Apply Now
+                        Take Assessment
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </>
                     )}
                   </Button>
+                  <p className="text-xs text-slate-400 text-center">
+                    {applied ? 'Application submitted' : 'Approx. 60 mins'}
+                  </p>
                 </div>
-              </Card>
+              </div>
             );
           })}
         </div>

@@ -90,7 +90,7 @@ const assessmentSchema = new mongoose.Schema({
 });
 
 // Generate unique link before validation
-assessmentSchema.pre('validate', function(next) {
+assessmentSchema.pre('validate', function (next) {
   if (!this.uniqueLink) {
     this.uniqueLink = generateUniqueCode();
   }
@@ -103,7 +103,7 @@ function generateUniqueCode() {
 }
 
 // Indexes
-assessmentSchema.index({ uniqueLink: 1 });
+
 assessmentSchema.index({ job: 1 });
 assessmentSchema.index({ recruiter: 1 });
 

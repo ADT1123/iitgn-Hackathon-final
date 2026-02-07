@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { assessmentAPI, applicationAPI } from '@/services/api';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Clock, 
-  FileText, 
-  CheckCircle, 
-  Loader2, 
+import {
+  Clock,
+  FileText,
+  CheckCircle,
+  Loader2,
   AlertCircle,
   ArrowRight,
   ArrowLeft,
@@ -17,15 +17,16 @@ import {
 } from 'lucide-react';
 
 export const CandidateAssessment: React.FC = () => {
+  const [applicationId, setApplicationId] = useState<string | null>(null);
   const { assessmentId } = useParams();
   const navigate = useNavigate();
-  const [assessment, setAssessment] = useState<any>(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<any>({});
+  const [assessment, setAssessment] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [started, setStarted] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (assessmentId) {
@@ -50,12 +51,43 @@ export const CandidateAssessment: React.FC = () => {
 
   const loadAssessment = async () => {
     try {
-      const response = await assessmentAPI.getAssessmentById(assessmentId!);
-      const assessmentData = response.data.data || response.data;
-      setAssessment(assessmentData);
-      setTimeRemaining(assessmentData.timeLimit * 60); // Convert to seconds
-    } catch (error) {
+      // Try to start/resume assessment immediately to check status
+      const response = await applicationAPI.startAssessment(assessmentId!);
+      const data = response.data.data;
+
+      setAssessment({
+        _id: assessmentId,
+        title: data.jobTitle,
+        questions: data.questions,
+        timeLimit: data.duration
+      });
+      setApplicationId(data.applicationId);
+
+      // Calculate remaining time if resuming
+      if (data.startedAt) {
+        const startTime = new Date(data.startedAt).getTime();
+        const now = new Date().getTime();
+        const elapsedSeconds = Math.floor((now - startTime) / 1000);
+        const remaining = (data.duration * 60) - elapsedSeconds;
+
+        if (remaining > 0) {
+          setTimeRemaining(remaining);
+          setStarted(true);
+        } else {
+          // Time expired
+          setTimeRemaining(0);
+          alert('Time has expired for this assessment.');
+          navigate('/candidate/applications');
+        }
+      } else {
+        setTimeRemaining(data.duration * 60);
+      }
+    } catch (error: any) {
       console.error('Failed to load assessment:', error);
+      if (error.response?.status === 400) {
+        alert(error.response.data.message);
+        navigate('/candidate/applications');
+      }
     } finally {
       setLoading(false);
     }
@@ -72,7 +104,24 @@ export const CandidateAssessment: React.FC = () => {
     });
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    // Save current answer before moving next
+    const currentQ = assessment.questions[currentQuestionIndex];
+    const currentAns = answers[currentQ._id];
+
+    if (currentAns && applicationId) {
+      try {
+        await applicationAPI.submitAnswer(applicationId, {
+          questionId: currentQ._id,
+          type: currentQ.type,
+          answer: currentAns,
+          timeSpent: 0 // Track per-question time if needed
+        });
+      } catch (err) {
+        console.error('Failed to save answer:', err);
+      }
+    }
+
     if (currentQuestionIndex < assessment.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
@@ -85,20 +134,24 @@ export const CandidateAssessment: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    if (!applicationId) return;
+
     try {
       setSubmitting(true);
-      
-      const submissionData = {
-        assessmentId: assessment._id,
-        answers: Object.keys(answers).map(questionId => ({
-          questionId,
-          answer: answers[questionId]
-        })),
-        timeSpent: (assessment.timeLimit * 60) - timeRemaining
-      };
 
-      await applicationAPI.submitApplication(assessment._id, submissionData);
-      
+      // Save last answer
+      const currentQ = assessment.questions[currentQuestionIndex];
+      const currentAns = answers[currentQ._id];
+      if (currentAns) {
+        await applicationAPI.submitAnswer(applicationId, {
+          questionId: currentQ._id,
+          type: currentQ.type,
+          answer: currentAns
+        });
+      }
+
+      await applicationAPI.submitApplication(applicationId, {});
+
       alert('Assessment submitted successfully!');
       navigate('/candidate/applications');
     } catch (error) {
@@ -128,8 +181,8 @@ export const CandidateAssessment: React.FC = () => {
       <Card className="text-center py-12">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
         <p className="text-slate-600">Assessment not found</p>
-        <Button 
-          variant="secondary" 
+        <Button
+          variant="secondary"
           className="mt-4"
           onClick={() => navigate('/candidate/jobs')}
         >
@@ -191,8 +244,8 @@ export const CandidateAssessment: React.FC = () => {
             </div>
           </div>
 
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             size="lg"
             className="w-full mt-6"
             onClick={handleStart}
@@ -216,15 +269,14 @@ export const CandidateAssessment: React.FC = () => {
           <div>
             <p className="text-sm text-slate-600">Question {currentQuestionIndex + 1} of {assessment.questions.length}</p>
             <div className="w-64 h-2 bg-slate-200 rounded-full mt-2 overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-blue-600 rounded-full transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            timeRemaining < 300 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-          }`}>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${timeRemaining < 300 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+            }`}>
             <Clock className="w-5 h-5" />
             <span className="text-lg font-bold">{formatTime(timeRemaining)}</span>
           </div>
@@ -253,11 +305,10 @@ export const CandidateAssessment: React.FC = () => {
                 {currentQuestion.options.map((option: string, idx: number) => (
                   <label
                     key={idx}
-                    className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      answers[currentQuestion._id] === option
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
+                    className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${answers[currentQuestion._id] === option
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                      }`}
                   >
                     <input
                       type="radio"

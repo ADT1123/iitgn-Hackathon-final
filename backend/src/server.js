@@ -9,12 +9,15 @@ const connectDB = require('./config/database');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
+
 const jobRoutes = require('./routes/job.routes');
 const assessmentRoutes = require('./routes/assessment.routes');
 const candidateRoutes = require('./routes/candidate.routes');
 const applicationRoutes = require('./routes/application.routes');
 const leaderboardRoutes = require('./routes/leaderboard.routes');
 const resumeRoutes = require('./routes/resume.routes');
+const analyticsRoutes = require('./routes/analytics.routes');
+const proctoringRoutes = require('./routes/proctoring.routes');
 
 const app = express();
 
@@ -29,8 +32,11 @@ app.use(helmet());
 
 // CORS - Allow all origins temporarily
 app.use(cors({
-  origin: [ '*',
+  origin: [
     'http://localhost:5173',
+    'http://localhost:5174', // Allow fallback port
+    'http://localhost:5175',
+    'http://localhost:3000',
     'https://iitgn-hackathon-final.vercel.app'
   ],
   credentials: true,
@@ -63,12 +69,14 @@ app.use('/api/assessments', assessmentRoutes);
 app.use('/api/candidates', candidateRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
-app.use('/api/resumes', resumeRoutes);
+app.use('/api/resume', resumeRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/proctoring', proctoringRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    status: 'OK',
     timestamp: new Date(),
     uptime: process.uptime()
   });
@@ -76,9 +84,10 @@ app.get('/health', (req, res) => {
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'AI Hiring Platform API',
-    version: '2.0.0',
+    version: '3.0.0',
+    features: '20 Advanced AI Features',
     endpoints: {
       auth: '/api/auth',
       jobs: '/api/jobs',
@@ -86,29 +95,31 @@ app.get('/', (req, res) => {
       candidates: '/api/candidates',
       applications: '/api/applications',
       leaderboard: '/api/leaderboard',
-      resumes: '/api/resumes'
+      resumes: '/api/resumes',
+      analytics: '/api/analytics',
+      proctoring: '/api/proctoring'
     }
   });
 });
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ 
-    success: false, 
-    message: 'Route not found' 
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
   });
 });
 
 // Error handling
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  
+
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { 
+    ...(process.env.NODE_ENV === 'development' && {
       stack: err.stack,
-      error: err 
+      error: err
     })
   });
 });

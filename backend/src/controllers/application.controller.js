@@ -11,33 +11,62 @@ const PlagiarismService = require('../services/plagiarism.service');
 exports.startAssessment = async (req, res, next) => {
   try {
     const { jobId } = req.params;
-    
+
     const assessment = await Assessment.findOne({ jobId });
     if (!assessment) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Assessment not found. Please contact recruiter.' 
+      return res.status(404).json({
+        success: false,
+        message: 'Assessment not found. Please contact recruiter.'
       });
     }
 
     const candidate = await Candidate.findOne({ userId: req.user._id });
     if (!candidate) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Candidate profile not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate profile not found'
       });
     }
 
     // Check if already applied
-    const existingApp = await Application.findOne({ 
-      candidateId: candidate._id, 
-      jobId 
+    const existingApp = await Application.findOne({
+      candidateId: candidate._id,
+      jobId
     });
-    
+
     if (existingApp) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'You have already applied to this job',
+      // Allow resuming if status is in-progress
+      if (existingApp.status === 'in-progress') {
+        const sanitizedQuestions = assessment.questions.map(q => {
+          const question = q.toObject();
+          if (question.type === 'objective') {
+            question.options = question.options.map(opt => ({
+              text: opt.text,
+              _id: opt._id
+            }));
+          }
+          delete question.testCases;
+          return question;
+        });
+
+        const job = await JobDescription.findById(jobId);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Resuming assessment',
+          data: {
+            applicationId: existingApp._id,
+            questions: sanitizedQuestions,
+            duration: job.assessmentConfig.duration,
+            jobTitle: job.title,
+            startedAt: existingApp.startedAt
+          }
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: 'You have already submitted this assessment',
         existingApplication: existingApp._id
       });
     }
@@ -88,19 +117,19 @@ exports.submitAnswer = async (req, res, next) => {
 
     const application = await Application.findById(applicationId);
     if (!application || application.status !== 'in-progress') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid application or assessment already submitted' 
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid application or assessment already submitted'
       });
     }
 
     const assessment = await Assessment.findById(application.assessmentId);
     const question = assessment.questions.id(questionId);
-    
+
     if (!question) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Question not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Question not found'
       });
     }
 
@@ -118,12 +147,12 @@ exports.submitAnswer = async (req, res, next) => {
       const isCorrect = question.options[answer.selectedOption]?.isCorrect;
       answerData.score = isCorrect ? (question.weight || 10) : 0;
       answerData.maxScore = question.weight || 10;
-      
+
     } else if (type === 'subjective') {
       answerData.textAnswer = answer.textAnswer;
       answerData.maxScore = question.rubric.maxScore;
       answerData.score = 0; // Will be updated by AI
-      
+
       // AI evaluation (async)
       GeminiService.evaluateSubjectiveAnswer(
         question.question,
@@ -144,12 +173,12 @@ exports.submitAnswer = async (req, res, next) => {
         ).exec();
         console.log('✅ Subjective answer evaluated');
       }).catch(err => console.error('❌ Evaluation error:', err));
-      
+
     } else if (type === 'programming') {
       answerData.code = answer.code;
       answerData.language = answer.language;
       answerData.maxScore = question.weight || 20;
-      
+
       console.log('🚀 Executing code...');
       try {
         const executionResults = await CodeExecutionService.executeCode(
@@ -159,17 +188,17 @@ exports.submitAnswer = async (req, res, next) => {
           question.timeLimit || 2,
           question.memoryLimit || 256000
         );
-        
+
         answerData.executionResults = executionResults;
-        
+
         const scoreData = CodeExecutionService.calculateScore(
           executionResults,
           question.weight || 20
         );
         answerData.score = scoreData.scored;
-        
+
         console.log(`✅ Code executed: ${scoreData.testCasesPassed}/${scoreData.totalTestCases} passed`);
-        
+
         // Check plagiarism (async)
         PlagiarismService.checkCodePlagiarism(answer.code, answer.language)
           .then(plagResult => {
@@ -186,7 +215,7 @@ exports.submitAnswer = async (req, res, next) => {
               }
             }).exec();
           }).catch(err => console.error('Plagiarism check error:', err));
-        
+
       } catch (execError) {
         console.error('❌ Code execution error:', execError);
         answerData.score = 0;
@@ -201,7 +230,7 @@ exports.submitAnswer = async (req, res, next) => {
     const existingAnswerIndex = application.answers.findIndex(
       a => a.questionId.toString() === questionId
     );
-    
+
     if (existingAnswerIndex > -1) {
       application.answers[existingAnswerIndex] = answerData;
     } else {
@@ -234,11 +263,11 @@ exports.submitAssessment = async (req, res, next) => {
       .populate('assessmentId')
       .populate('candidateId')
       .populate('jobId');
-    
+
     if (!application) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Application not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
       });
     }
 
@@ -270,16 +299,16 @@ exports.submitAssessment = async (req, res, next) => {
     });
 
     // Calculate percentages
-    scores.objective.percentage = scores.objective.total > 0 ? 
+    scores.objective.percentage = scores.objective.total > 0 ?
       Math.round((scores.objective.scored / scores.objective.total) * 100) : 0;
-    scores.subjective.percentage = scores.subjective.total > 0 ? 
+    scores.subjective.percentage = scores.subjective.total > 0 ?
       Math.round((scores.subjective.scored / scores.subjective.total) * 100) : 0;
-    scores.programming.percentage = scores.programming.total > 0 ? 
+    scores.programming.percentage = scores.programming.total > 0 ?
       Math.round((scores.programming.scored / scores.programming.total) * 100) : 0;
 
     const totalScored = scores.objective.scored + scores.subjective.scored + scores.programming.scored;
     const totalMax = scores.objective.total + scores.subjective.total + scores.programming.total;
-    
+
     scores.overall = {
       scored: totalScored,
       total: totalMax,
@@ -292,31 +321,31 @@ exports.submitAssessment = async (req, res, next) => {
     // Skill analysis
     const job = application.jobId;
     const skillAnalysis = [];
-    
+
     if (job.parsedData && job.parsedData.requiredSkills) {
       job.parsedData.requiredSkills.forEach(skillObj => {
         const skillQuestions = application.answers.filter(ans => {
           const question = application.assessmentId.questions.id(ans.questionId);
           return question && question.skillMapping === skillObj.skill;
         });
-        
+
         if (skillQuestions.length > 0) {
           const skillScore = skillQuestions.reduce((sum, ans) => sum + (ans.score || 0), 0);
           const skillMax = skillQuestions.reduce((sum, ans) => sum + (ans.maxScore || 10), 0);
           const percentage = Math.round((skillScore / skillMax) * 100);
-          
+
           skillAnalysis.push({
             skill: skillObj.skill,
             score: skillScore,
             maxScore: skillMax,
-            performance: percentage >= 80 ? 'excellent' : 
-                        percentage >= 60 ? 'good' : 
-                        percentage >= 40 ? 'average' : 'poor'
+            performance: percentage >= 80 ? 'excellent' :
+              percentage >= 60 ? 'good' :
+                percentage >= 40 ? 'average' : 'poor'
           });
         }
       });
     }
-    
+
     application.skillAnalysis = skillAnalysis;
 
     // Resume-skill mismatch detection
@@ -327,12 +356,12 @@ exports.submitAssessment = async (req, res, next) => {
           application.candidateId.resume.parsedData.skills,
           skillAnalysis
         );
-        
+
         application.resumeSkillMismatch = {
           detected: mismatchAnalysis.mismatches.length > 0,
           mismatches: mismatchAnalysis.mismatches
         };
-        
+
         if (mismatchAnalysis.mismatches.some(m => m.severity === 'high')) {
           application.status = 'flagged';
         }
@@ -386,12 +415,12 @@ exports.submitAssessment = async (req, res, next) => {
 // Helper function to update leaderboard
 async function updateLeaderboard(jobId) {
   try {
-    const applications = await Application.find({ 
-      jobId, 
+    const applications = await Application.find({
+      jobId,
       status: { $in: ['completed', 'qualified', 'rejected', 'flagged'] }
     })
-    .sort({ 'scores.overall.weightedScore': -1 })
-    .select('candidateId scores.overall.weightedScore status');
+      .sort({ 'scores.overall.weightedScore': -1 })
+      .select('candidateId scores.overall.weightedScore status');
 
     const rankings = applications.map((app, index) => ({
       applicationId: app._id,
@@ -409,7 +438,7 @@ async function updateLeaderboard(jobId) {
         percentile: ranking.percentile
       })
     );
-    
+
     await Promise.all(updatePromises);
 
     await Leaderboard.findOneAndUpdate(
@@ -427,7 +456,15 @@ async function updateLeaderboard(jobId) {
 exports.getApplications = async (req, res, next) => {
   try {
     const candidate = await Candidate.findOne({ userId: req.user._id });
-    
+
+    if (!candidate) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: []
+      });
+    }
+
     const applications = await Application.find({ candidateId: candidate._id })
       .populate('jobId', 'title parsedData.domain status')
       .sort({ createdAt: -1 });
@@ -453,9 +490,9 @@ exports.getApplicationById = async (req, res, next) => {
       });
 
     if (!application) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Application not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
       });
     }
 
@@ -501,9 +538,9 @@ exports.trackProctoring = async (req, res, next) => {
 
     const application = await Application.findById(applicationId);
     if (!application) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Application not found' 
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
       });
     }
 
@@ -526,6 +563,103 @@ exports.trackProctoring = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Activity tracked'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.updateStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const application = await Application.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true, runValidators: true }
+    );
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: application
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.bulkUpdate = async (req, res, next) => {
+  try {
+    const { applicationIds, status } = req.body;
+
+    await Application.updateMany(
+      { _id: { $in: applicationIds } },
+      { $set: { status } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Applications updated successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getAnalytics = async (req, res, next) => {
+  try {
+    const application = await Application.findById(req.params.id)
+      .populate('assessmentId', 'title description')
+      .select('scores skillAnalysis aiInsights timeSpent status createdAt');
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: application
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.downloadReport = async (req, res, next) => {
+  try {
+    const application = await Application.findById(req.params.id)
+      .populate('candidateId')
+      .populate('jobId')
+      .populate('assessmentId');
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Application not found'
+      });
+    }
+
+    // Return JSON data as a placeholder for report generation
+    res.status(200).json({
+      success: true,
+      message: 'Report data retrieved successfully',
+      data: {
+        candidateName: application.candidateId?.userId?.name || 'Unknown',
+        jobTitle: application.jobId?.title || 'Unknown Job',
+        assessmentTitle: application.assessmentId?.title || 'Unknown Assessment',
+        scores: application.scores,
+        status: application.status,
+        submittedAt: application.submittedAt
+      }
     });
   } catch (error) {
     next(error);

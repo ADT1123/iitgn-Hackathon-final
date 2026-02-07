@@ -1,36 +1,15 @@
+
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth.middleware');
-const upload = require('../config/multer');
 const resumeController = require('../controllers/resume.controller');
 
-// All routes require authentication
-router.use(protect);
+const { protect } = require('../middleware/auth.middleware');
 
-// Upload and screen single resume
-router.post(
-  '/screen',
-  upload.single('resume'),
-  resumeController.uploadAndScreenResume
-);
+// Use multer if upload middleware not standard
+const multer = require('multer');
+const storage = multer.memoryStorage();
+const uploadMiddleware = multer({ storage: storage });
 
-// Bulk screen resumes
-router.post(
-  '/bulk-screen',
-  upload.array('resumes', 50),
-  resumeController.bulkScreenResumes
-);
-
-// Get eligibility report
-router.get(
-  '/:id/eligibility-report',
-  resumeController.getEligibilityReport
-);
-
-// Check skill mismatch (call after assessment)
-router.post(
-  '/:id/check-mismatch',
-  resumeController.checkSkillMismatch
-);
+router.post('/screen', protect, uploadMiddleware.single('resume'), resumeController.screenResume);
 
 module.exports = router;

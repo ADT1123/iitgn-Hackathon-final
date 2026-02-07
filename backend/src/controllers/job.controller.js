@@ -73,9 +73,9 @@ const parseJD = async (req, res) => {
 const getStats = async (req, res) => {
   try {
     const totalJobs = await Job.countDocuments({ recruiter: req.user.id });
-    const activeJobs = await Job.countDocuments({ 
-      recruiter: req.user.id, 
-      status: 'active' 
+    const activeJobs = await Job.countDocuments({
+      recruiter: req.user.id,
+      status: 'active'
     });
 
     res.status(200).json({
@@ -98,26 +98,31 @@ const getStats = async (req, res) => {
 const getJobs = async (req, res) => {
   try {
     const { status, department, location, limit, sort } = req.query;
-    
-    const query = { recruiter: req.user.id };
-    
+
+    const query = {};
+
+    // Only filter by recruiter if specifically requested, otherwise show all
+    if (req.query.recruiterId) {
+      query.recruiter = req.query.recruiterId;
+    }
+
     if (status) query.status = status;
     if (department) query.department = department;
     if (location) query.location = location;
 
     let jobsQuery = Job.find(query);
-    
+
     if (sort) {
       jobsQuery = jobsQuery.sort(sort);
     } else {
       jobsQuery = jobsQuery.sort('-createdAt');
     }
-    
+
     if (limit) {
       jobsQuery = jobsQuery.limit(parseInt(limit));
     }
 
-    const jobs = await jobsQuery;
+    const jobs = await jobsQuery.populate('assessment', 'title duration');
 
     res.status(200).json({
       success: true,
@@ -136,7 +141,7 @@ const getJobs = async (req, res) => {
 const getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
-    
+
     if (!job) {
       return res.status(404).json({
         success: false,
@@ -160,7 +165,7 @@ const getJobById = async (req, res) => {
 const createJob = async (req, res) => {
   try {
     console.log('📝 Create job:', req.body);
-    
+
     const jobData = {
       ...req.body,
       recruiter: req.user.id

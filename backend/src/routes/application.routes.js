@@ -2,41 +2,21 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth.middleware');
 
-// Simple test controller inline
-const testController = {
-  submitApplication: (req, res) => {
-    res.json({ success: true, message: 'Submit works' });
-  },
-  getApplications: (req, res) => {
-    res.json({ success: true, data: [] });
-  },
-  getApplicationById: (req, res) => {
-    res.json({ success: true, data: {} });
-  },
-  updateStatus: (req, res) => {
-    res.json({ success: true, message: 'Updated' });
-  },
-  bulkUpdate: (req, res) => {
-    res.json({ success: true, message: 'Bulk updated' });
-  },
-  getAnalytics: (req, res) => {
-    res.json({ success: true, data: {} });
-  },
-  downloadReport: (req, res) => {
-    res.json({ success: true, data: {} });
-  }
-};
+const applicationController = require('../controllers/application.controller');
 
 // All routes require authentication
 router.use(protect);
 
-// Routes with test controller
-router.post('/submit', testController.submitApplication);
-router.get('/', testController.getApplications);
-router.get('/:id', testController.getApplicationById);
-router.patch('/:id/status', testController.updateStatus);
-router.post('/bulk-update', testController.bulkUpdate);
-router.get('/:id/analytics', testController.getAnalytics);
-router.get('/:id/report', testController.downloadReport);
+// Routes
+router.post('/start/:jobId', applicationController.startAssessment);
+router.post('/:applicationId/answer', applicationController.submitAnswer);
+router.post('/:applicationId/submit', applicationController.submitAssessment);
+router.get('/', applicationController.getApplications);
+router.get('/job/:jobId', applicationController.getJobApplications);
+router.get('/:id', applicationController.getApplicationById);
+router.patch('/:id/status', applicationController.updateStatus); // Ensure this exists in controller or add it
+router.post('/bulk-update', applicationController.bulkUpdate); // Ensure this exists or add it
+router.get('/:id/analytics', applicationController.getAnalytics); // Ensure this exists or add it
+router.get('/:id/report', applicationController.downloadReport); // Ensure this exists or add it
 
 module.exports = router;
