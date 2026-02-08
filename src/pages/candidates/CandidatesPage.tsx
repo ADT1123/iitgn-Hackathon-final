@@ -21,8 +21,12 @@ import {
   Briefcase,
   Trophy,
   ArrowUpRight,
-  ShieldCheck
+  ShieldCheck,
+  Trash2,
+  Edit,
+  UserPlus
 } from 'lucide-react';
+import { candidatesAPI } from '@/services/api';
 
 export const CandidatesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -46,6 +50,19 @@ export const CandidatesPage: React.FC = () => {
       console.error('Failed to load applications:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this candidate? This will also remove their associated user account.')) return;
+
+    try {
+      await candidatesAPI.deleteCandidate(id);
+      loadApplications();
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('Failed to delete candidate');
     }
   };
 
@@ -246,15 +263,27 @@ export const CandidatesPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-5 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                      <div className="flex items-center justify-end gap-2">
                         <StatusBadge status={app.status} />
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="w-8 h-8 p-0 rounded-lg hover:bg-slate-200/50 text-slate-400 hover:text-slate-900 group/btn"
-                        >
-                          <MoreVertical className="w-4 h-4 transition-transform group-hover/btn:scale-110" />
-                        </Button>
+                        <div className="flex items-center gap-1 ml-4" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="w-8 h-8 p-0 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600"
+                            onClick={() => navigate(`/candidates/profile/${app.candidate?._id || app.candidateId}`)}
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="w-8 h-8 p-0 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"
+                            onClick={(e) => handleDelete(e, app.candidate?._id || app.candidateId || app._id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                          <MoreVertical className="w-4 h-4 text-slate-300 ml-1" />
+                        </div>
                       </div>
                     </td>
                   </tr>

@@ -1,0 +1,42 @@
+{
+  "questions": [
+    {
+      "type": "objective",
+      "question": "What is the primary goal of using AI in marketing?",
+      "options": ["To replace human marketers", "To increase ad spend", "To automate repetitive tasks and improve targeting", "To eliminate the need for data analysis"],
+      "correctAnswer": 2,
+      "points": 2,
+      "skill": "ai"
+    },
+    {
+      "type": "objective",
+      "question": "Which of the following is a key component of a successful marketing strategy?",
+      "options": ["High budget allocation", "Exclusive focus on social media", "Clear understanding of the target audience", "Random ad placements"],
+      "correctAnswer": 2,
+      "points": 2,
+      "skill": "marketing"
+    },
+    {
+      "type": "objective",
+      "question": "What is the most effective way to measure the success of a marketing campaign?",
+      "options": ["Number of likes on social media", "Increase in brand awareness", "Conversion rate and return on investment (ROI)", "Number of website visitors"],
+      "correctAnswer": 2,
+      "points": 2,
+      "skill": "marketing"
+    },
+    {
+      "type": "objective",
+      "question": "Which of the following is a crucial aspect of effective communication in marketing?",
+      "options": ["Using complex jargon", "Focusing only on the product", "Understanding the audience's needs and preferences", "Ignoring feedback"],
+      "correctAnswer": 2,
+      "points": 2,
+      "skill": "communication"
+    },
+    {
+      "type": "objective",
+      "question": "How can AI improve sales forecasting?",
+      "options": ["By predicting customer preferences with high accuracy", "By eliminating the need for market research", "By increasing the number of sales calls", "By reducing the price of products"],
+      "correctAnswer": 0,
+      "points": 2,
+      "skill": "ai"
+    }}]

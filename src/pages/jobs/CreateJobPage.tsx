@@ -141,7 +141,7 @@ export const CreateJobPage: React.FC = () => {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Create New Job</h1>
-          <p className="text-slate-600 mt-1">AI will extract skills and requirements</p>
+          <p className="text-slate-600 mt-1">Generate full JD from prompt or parse existing text with Recruiter AI</p>
         </div>
       </div>
 
@@ -159,7 +159,10 @@ export const CreateJobPage: React.FC = () => {
               <textarea
                 value={formData.rawJD}
                 onChange={(e) => setFormData({ ...formData, rawJD: e.target.value })}
-                placeholder="Paste your complete job description here... AI will automatically extract all fields!"
+                placeholder="PROMPT EXAMPLE: 'Full Stack React developer with 5 years experience for a fintech startup in Bangalore' 
+OR Paste complete JD here... 
+         
+AI will automatically generate/extract all fields!"
                 className="w-full h-48 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-mono text-sm"
               />
             </div>
@@ -168,11 +171,11 @@ export const CreateJobPage: React.FC = () => {
               type="button"
               onClick={handleParseJD}
               loading={parsing}
-              variant="secondary"
-              className="w-full"
+              variant="primary"
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold h-12 rounded-xl"
             >
               <Wand2 className="w-4 h-4 mr-2" />
-              {parsing ? 'Parsing with AI...' : 'Parse with AI'}
+              {parsing ? 'Processing with AI...' : (formData.rawJD.length > 20 ? 'Process with Recruiter AI' : 'Provide Details to Generate JD')}
             </Button>
           </div>
         </Card>

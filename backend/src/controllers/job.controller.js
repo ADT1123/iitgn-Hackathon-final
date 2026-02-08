@@ -1,4 +1,5 @@
 const Job = require('../models/Job');
+const sarvamService = require('../services/sarvam.service');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Initialize Gemini
@@ -12,101 +13,58 @@ const parseJD = async (req, res) => {
   try {
     const { jdText } = req.body;
 
-    console.log('📝 Parse JD called');
+    console.log('📝 Parse/Generate JD called with Sarvam');
 
     if (!jdText || jdText.trim().length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Job description text is required'
+        message: 'Job description text or prompt is required'
       });
     }
-
-    // Check if Gemini API is available
-    if (!genAI) {
-      console.warn('⚠️ Gemini API not configured, returning basic extraction');
-      // Fallback: basic text extraction without AI
-      return res.status(200).json({
-        success: true,
-        message: 'Parsed with basic extraction (AI not configured)',
-        data: extractBasicInfo(jdText)
-      });
-    }
-
-    console.log('🤖 Using Gemini AI to parse JD...');
-
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-    const prompt = `Analyze this job description and extract structured information. Return ONLY valid JSON, no markdown code blocks, no extra text.
-
-Job Description:
-${jdText}
-
-Return this exact JSON structure (fill in based on the JD content, use "Not Specified" for missing fields):
-{
-  "title": "extracted job title",
-  "department": "department name like Engineering, Marketing, HR, Sales, etc.",
-  "location": "location or Remote",
-  "type": "Full-time, Part-time, Contract, or Internship",
-  "experience": "experience requirement like 0-2 years, 2-4 years, etc.",
-  "description": "brief 2-3 sentence summary of the role",
-  "requirements": ["requirement 1", "requirement 2", "requirement 3"],
-  "responsibilities": ["responsibility 1", "responsibility 2", "responsibility 3"],
-  "benefits": ["benefit 1", "benefit 2"],
-  "skills": ["skill1", "skill2", "skill3", "skill4", "skill5"],
-  "salary": {
-    "min": 0,
-    "max": 0,
-    "currency": "USD"
-  }
-}`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
-
-    console.log('📄 Gemini raw response length:', text.length);
-
-    // Clean the response - remove markdown code blocks if present
-    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
     let parsedData;
-    try {
-      parsedData = JSON.parse(text);
-    } catch (parseError) {
-      console.error('❌ JSON parse error, attempting to extract:', parseError.message);
-      // Try to find JSON in the response
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedData = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Could not parse AI response as JSON');
-      }
+
+    // If text is short, assume it's a prompt for generation
+    if (jdText.trim().length < 50) {
+      console.log('🤖 Generating full JD from prompt using Sarvam...');
+      parsedData = await sarvamService.generateJD(jdText);
+    } else {
+      console.log('🤖 Parsing JD text using Sarvam...');
+      const prompt = `Analyze this job description and extract structured information. Return ONLY valid JSON.
+      
+      Job Description:
+      ${jdText}
+      
+      Return this exact JSON structure:
+      {
+        "title": "extracted job title",
+        "department": "Engineering, Marketing, HR, Sales, etc.",
+        "location": "location or Remote",
+        "type": "Full-time, Part-time, Contract, or Internship",
+        "experience": "e.g. 0-2 years, 2+ years",
+        "description": "brief summary",
+        "requirements": ["req1", "req2"],
+        "responsibilities": ["resp1", "resp2"],
+        "benefits": ["ben1", "ben2"],
+        "skills": ["skill1", "skill2"],
+        "salary": { "min": 0, "max": 0, "currency": "USD" }
+      }`;
+      parsedData = await sarvamService.getChatCompletion(prompt);
     }
 
-    console.log('✅ JD parsed successfully with AI:', parsedData.title);
+    console.log('✅ JD processed successfully with Sarvam:', parsedData.title);
 
     return res.status(200).json({
       success: true,
-      message: 'Parsed successfully with AI',
+      message: 'Processed successfully with Recruiter AI',
       data: parsedData
     });
 
   } catch (error) {
     console.error('❌ Parse JD error:', error);
-
-    // Fallback to basic extraction on AI error
-    if (req.body.jdText) {
-      console.log('⚠️ Falling back to basic extraction');
-      return res.status(200).json({
-        success: true,
-        message: 'Parsed with basic extraction (AI error: ' + error.message + ')',
-        data: extractBasicInfo(req.body.jdText)
-      });
-    }
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || 'Failed to process JD with AI'
     });
   }
 };
@@ -182,11 +140,9 @@ function extractBasicInfo(jdText) {
 // Get Stats
 const getStats = async (req, res) => {
   try {
-    const totalJobs = await Job.countDocuments({ recruiter: req.user.id });
-    const activeJobs = await Job.countDocuments({
-      recruiter: req.user.id,
-      status: 'active'
-    });
+    // Show global stats for all recruiters
+    const totalJobs = await Job.countDocuments();
+    const activeJobs = await Job.countDocuments({ status: 'active' });
 
     res.status(200).json({
       success: true,
@@ -211,7 +167,8 @@ const getJobs = async (req, res) => {
 
     const query = {};
 
-    // Only filter by recruiter if specifically requested, otherwise show all
+    // By default, show all jobs globally.
+    // Allow filtering by recruiter specifically if requested.
     if (req.query.recruiterId) {
       query.recruiter = req.query.recruiterId;
     }

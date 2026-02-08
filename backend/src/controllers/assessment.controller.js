@@ -1,6 +1,7 @@
 const Assessment = require('../models/Assessment');
 const Job = require('../models/Job');
 const Application = require('../models/Application');
+const sarvamService = require('../services/sarvam.service');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 let genAI = null;
@@ -11,7 +12,8 @@ if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_ap
 // Get all assessments
 exports.getAssessments = async (req, res) => {
   try {
-    const assessments = await Assessment.find({ recruiter: req.user.id })
+    // Show all assessments globally for recruiters
+    const assessments = await Assessment.find()
       .populate('job', 'title department location')
       .sort('-createdAt');
 
@@ -80,20 +82,20 @@ exports.getAssessmentById = async (req, res) => {
 
 const geminiService = require('../services/gemini.service');
 
-// Generate questions with AI
+// Generate questions with Recruiter AI
 exports.generateQuestions = async (req, res) => {
   try {
     const {
       jobId,
-      objectiveCount = 0,
-      subjectiveCount = 0,
-      codingCount = 0,
+      objectiveCount = 5,
+      subjectiveCount = 2,
+      codingCount = 1,
       duration = 60,
       difficulty = 'medium',
       title: customTitle
     } = req.body;
 
-    console.log('🚀 AI Assessment Generation started for Job:', jobId);
+    console.log('🚀 Sarvam Assessment Generation started for Job:', jobId);
 
     const job = await Job.findById(jobId);
     if (!job) {
@@ -103,82 +105,17 @@ exports.generateQuestions = async (req, res) => {
       });
     }
 
-    const skills = job.skills && job.skills.length > 0 ? job.skills : ['General Programming', 'Problem Solving'];
-    const questions = [];
+    // Use Sarvam to generate questions
+    const counts = { objective: objectiveCount, subjective: subjectiveCount, coding: codingCount };
+    const aiResponse = await sarvamService.generateQuestions(job, counts, difficulty);
 
-    // Parallel generation for speed
-    const objectivePromises = [];
-    const subjectivePromises = [];
-    const codingPromises = [];
+    const questions = aiResponse.questions || [];
 
-    // Objective questions
-    if (objectiveCount > 0) {
-      const countPerSkill = Math.ceil(objectiveCount / skills.length);
-      skills.forEach(skill => {
-        objectivePromises.push(geminiService.generateObjectiveQuestions(skill, difficulty, countPerSkill));
-      });
+    if (questions.length === 0) {
+      throw new Error('AI failed to generate any questions. Please try again.');
     }
 
-    // Subjective questions
-    if (subjectiveCount > 0) {
-      const countPerSkill = Math.ceil(subjectiveCount / skills.length);
-      skills.forEach(skill => {
-        subjectivePromises.push(geminiService.generateSubjectiveQuestions(skill, difficulty, countPerSkill));
-      });
-    }
-
-    // Coding questions
-    if (codingCount > 0) {
-      const countPerSkill = Math.ceil(codingCount / skills.length);
-      skills.forEach(skill => {
-        codingPromises.push(geminiService.generateProgrammingQuestions(skill, difficulty, countPerSkill));
-      });
-    }
-
-    const [objResults, subjResults, codeResults] = await Promise.all([
-      Promise.all(objectivePromises),
-      Promise.all(subjectivePromises),
-      Promise.all(codingPromises)
-    ]);
-
-    // Flatten and trim to exact counts
-    const flattenedObj = objResults.flat().slice(0, objectiveCount);
-    const flattenedSubj = subjResults.flat().slice(0, subjectiveCount);
-    const flattenedCode = codeResults.flat().slice(0, codingCount);
-
-    // Map to Assessment Question model
-    flattenedObj.forEach(q => questions.push({
-      type: 'objective',
-      question: q.question,
-      options: q.options.map(opt => opt.text || opt),
-      correctAnswer: q.options.findIndex(opt => opt.isCorrect === true) || 0,
-      points: 2,
-      difficulty: q.difficulty || difficulty,
-      skill: q.category || 'Technical'
-    }));
-
-    flattenedSubj.forEach(q => questions.push({
-      type: 'subjective',
-      question: q.question,
-      points: 10,
-      difficulty: q.difficulty || difficulty,
-      skill: q.category || 'Conceptual',
-      rubric: q.rubric
-    }));
-
-    flattenedCode.forEach(q => questions.push({
-      type: 'coding',
-      question: q.question,
-      points: 25,
-      difficulty: q.difficulty || difficulty,
-      skill: q.category || 'Problem Solving',
-      testCases: q.testCases?.map(tc => ({
-        input: tc.input,
-        expectedOutput: tc.expectedOutput || tc.output
-      }))
-    }));
-
-    console.log(`✅ Generated ${questions.length} questions successfully`);
+    console.log(`✅ Generated ${questions.length} questions successfully with AI`);
 
     // Create assessment
     const assessment = await Assessment.create({
@@ -198,12 +135,12 @@ exports.generateQuestions = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'AI Assessment generated successfully',
+      message: 'Recruiter AI Assessment generated successfully',
       data: assessment
     });
 
   } catch (error) {
-    console.error('❌ Assessment Generation Error:', error);
+    console.error('❌ Sarvam Assessment Generation Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to generate AI assessment'
@@ -283,26 +220,32 @@ exports.submitCandidateAssessment = async (req, res) => {
       });
     }
 
-    // Calculate score
-    let totalScore = 0;
-    let maxScore = 0;
-
-    const evaluatedAnswers = answers.map(answer => {
+    const evaluationPromises = answers.map(async (answer) => {
       const question = assessment.questions.id(answer.questionId);
       if (!question) return null;
 
       let score = 0;
+      let aiEvaluation = null;
       const isObjective = question.type === 'objective';
 
       if (isObjective) {
         score = answer.answer === question.correctAnswer ? question.points : 0;
       } else {
-        // For subjective/coding, give partial score
-        score = question.points * 0.7;
+        // Use Recruiter AI for real-time evaluation of subjective/coding
+        try {
+          const evalResult = await sarvamService.evaluateAnswer(question.question, answer.answer, question.points);
+          score = evalResult.score;
+          aiEvaluation = {
+            feedback: evalResult.feedback,
+            strengths: evalResult.strengths,
+            improvements: evalResult.weaknesses,
+            confidence: 0.9
+          };
+        } catch (e) {
+          console.warn('Real-time AI evaluation failed, using fallback:', e.message);
+          score = question.points * 0.5; // Neutral fallback
+        }
       }
-
-      totalScore += score;
-      maxScore += question.points;
 
       return {
         questionId: answer.questionId,
@@ -311,33 +254,55 @@ exports.submitCandidateAssessment = async (req, res) => {
         isCorrect: isObjective ? (answer.answer === question.correctAnswer) : null,
         score,
         maxScore: question.points,
-        timeTaken: answer.timeTaken
+        timeTaken: answer.timeTaken,
+        aiEvaluation
       };
-    }).filter(Boolean);
+    });
 
-    const totalPercentage = Math.round((totalScore / maxScore) * 100);
+    const evaluatedAnswers = (await Promise.all(evaluationPromises)).filter(Boolean);
+
+    let totalScore = 0;
+    let maxScore = 0;
+
+    evaluatedAnswers.forEach(ans => {
+      totalScore += ans.score;
+      maxScore += ans.maxScore;
+    });
+
+    const totalPercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
 
     // Determine status
     let status = 'completed';
-    if (totalPercentage >= assessment.job.qualificationCriteria?.minimumScore || 60) {
+    if (totalPercentage >= (assessment.job.qualificationCriteria?.minimumScore || 60)) {
       status = 'shortlisted';
     } else if (totalPercentage < (assessment.job.qualificationCriteria?.autoRejectBelow || 40)) {
       status = 'rejected';
     }
 
     // Create application
-    const application = await Application.create({
-      job: assessment.job._id,
-      assessment: assessment._id,
-      candidateName,
-      candidateEmail,
-      phone,
-      answers: evaluatedAnswers,
-      totalScore: totalPercentage,
-      status,
-      autoEvaluated: true,
-      completedAt: new Date()
-    });
+    let application;
+    try {
+      application = await Application.create({
+        job: assessment.job._id,
+        assessment: assessment._id,
+        candidateName,
+        candidateEmail,
+        phone,
+        answers: evaluatedAnswers,
+        totalScore: totalPercentage,
+        status,
+        autoEvaluated: true,
+        completedAt: new Date()
+      });
+    } catch (createErr) {
+      if (createErr.code === 11000) {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already submitted an application for this position.'
+        });
+      }
+      throw createErr;
+    }
 
     // Update assessment stats
     assessment.totalAttempts += 1;

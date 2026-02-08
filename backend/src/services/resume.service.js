@@ -27,12 +27,12 @@ function generateFallback(resumeText, jobDescription, reason) {
 }
 
 /**
- * Extracts text from PDF using Sarvam AI parsepdf
+ * Extracts text from PDF using AI parsepdf
  */
 async function extractTextFromPDF(fileBuffer, originalname) {
   if (SARVAM_API_KEY) {
     try {
-      console.log('Attempting PDF extraction with Sarvam AI...');
+      console.log('Attempting PDF extraction with AI...');
       const formData = new FormData();
       formData.append('file', fileBuffer, {
         filename: originalname || 'resume.pdf',
@@ -73,7 +73,7 @@ async function extractTextFromPDF(fileBuffer, originalname) {
 }
 
 /**
- * Main Analysis function using Sarvam AI exclusively
+ * Main Analysis function using Recruiter AI exclusively
  */
 exports.analyzeResume = async (fileBuffer, jobDescription, originalname) => {
   let resumeText = '';
@@ -89,7 +89,7 @@ exports.analyzeResume = async (fileBuffer, jobDescription, originalname) => {
       console.log(`Text extracted (${resumeText.length} chars). Analyzing with Sarvam-M...`);
     }
 
-    // 2. Analysis with Sarvam AI Chat Completion (sarvam-m)
+    // 2. Analysis with Recruiter AI Chat Completion (sarvam-m)
     if (!SARVAM_API_KEY) {
       console.error('SARVAM_API_KEY is missing.');
       return generateFallback(resumeText, jobDescription, "API Key Missing");

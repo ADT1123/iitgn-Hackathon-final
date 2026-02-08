@@ -210,10 +210,12 @@ export const proctoringAPI = {
 
 // ===== CANDIDATES API =====
 export const candidatesAPI = {
-  getCandidates: (params?: any) => api.get('/candidates', { params }),
-  getCandidateById: (id: string) => api.get(`/candidates/${id}`),
+  getCandidates: (params?: any) => api.get('/candidates/all', { params }),
+  getCandidateById: (id: string) => api.get(`/candidates/profile/${id}`),
+  updateCandidate: (id: string, data: any) => api.put(`/candidates/profile/${id}`, data),
+  deleteCandidate: (id: string) => api.delete(`/candidates/${id}`),
   updateCandidateStatus: (id: string, status: string) =>
-    api.patch(`/candidates/${id}/status`, { status }),
+    api.patch(`/applications/${id}/status`, { status }), // Application status is more common
 };
 
 // ===== SETTINGS API =====

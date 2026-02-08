@@ -22,6 +22,7 @@ import { CreateAssessmentPage } from './pages/assessments/CreateAssessmentPage';
 import { AssessmentDetailsPage } from './pages/assessments/AssessmentDetailsPage';
 import { CandidatesPage } from './pages/candidates/CandidatesPage';
 import { CandidateDetailsPage } from './pages/candidates/CandidateDetailsPage';
+import { CandidateProfilePage } from './pages/candidates/CandidateProfilePage';
 import { AnalyticsPage } from './pages/analytics/AnalyticsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { TakeAssessmentPage } from './pages/public/TakeAssessmentPage';
@@ -288,6 +289,16 @@ function AppContent() {
             <ProtectedRoute role="recruiter">
               <MainLayout>
                 <CandidateDetailsPage />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/candidates/profile/:id"
+          element={
+            <ProtectedRoute role="recruiter">
+              <MainLayout>
+                <CandidateProfilePage />
               </MainLayout>
             </ProtectedRoute>
           }

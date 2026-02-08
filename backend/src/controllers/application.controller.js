@@ -1,10 +1,9 @@
-// src/controllers/application.controller.js
 const Application = require('../models/Application');
 const Assessment = require('../models/Assessment');
 const Candidate = require('../models/Candidate');
-const JobDescription = require('../models/JobDescription');
+const Job = require('../models/Job'); // Use Job instead of JobDescription if that's the model
 const Leaderboard = require('../models/Leaderboard');
-const GeminiService = require('../services/gemini.service');
+const sarvamService = require('../services/sarvam.service');
 const CodeExecutionService = require('../services/codeExecution.service');
 const PlagiarismService = require('../services/plagiarism.service');
 
@@ -12,7 +11,7 @@ exports.startAssessment = async (req, res, next) => {
   try {
     const { jobId } = req.params;
 
-    const assessment = await Assessment.findOne({ jobId });
+    const assessment = await Assessment.findOne({ job: jobId });
     if (!assessment) {
       return res.status(404).json({
         success: false,
@@ -30,8 +29,8 @@ exports.startAssessment = async (req, res, next) => {
 
     // Check if already applied
     const existingApp = await Application.findOne({
-      candidateId: candidate._id,
-      jobId
+      candidate: candidate._id,
+      job: jobId
     });
 
     if (existingApp) {
@@ -49,7 +48,7 @@ exports.startAssessment = async (req, res, next) => {
           return question;
         });
 
-        const job = await JobDescription.findById(jobId);
+        const job = await Job.findById(jobId);
 
         return res.status(200).json({
           success: true,
@@ -72,9 +71,9 @@ exports.startAssessment = async (req, res, next) => {
     }
 
     const application = await Application.create({
-      candidateId: candidate._id,
-      jobId,
-      assessmentId: assessment._id,
+      candidate: candidate._id,
+      job: jobId,
+      assessment: assessment._id,
       status: 'in-progress',
       startedAt: new Date()
     });
@@ -153,11 +152,11 @@ exports.submitAnswer = async (req, res, next) => {
       answerData.maxScore = question.rubric.maxScore;
       answerData.score = 0; // Will be updated by AI
 
-      // AI evaluation (async)
-      GeminiService.evaluateSubjectiveAnswer(
+      // Recruiter AI evaluation (async)
+      sarvamService.evaluateAnswer(
         question.question,
         answer.textAnswer,
-        question.rubric
+        question.points || 10
       ).then(evaluation => {
         Application.findOneAndUpdate(
           { _id: applicationId, 'answers.questionId': questionId },
@@ -166,13 +165,15 @@ exports.submitAnswer = async (req, res, next) => {
               'answers.$.score': evaluation.score,
               'answers.$.aiEvaluation': {
                 feedback: evaluation.feedback,
-                rubricScores: evaluation.rubricScores
+                strengths: evaluation.strengths,
+                improvements: evaluation.weaknesses,
+                confidence: 0.9
               }
             }
           }
         ).exec();
-        console.log('✅ Subjective answer evaluated');
-      }).catch(err => console.error('❌ Evaluation error:', err));
+        console.log('✅ Subjective answer evaluated with Sarvam');
+      }).catch(err => console.error('❌ Sarvam Evaluation error:', err));
 
     } else if (type === 'programming') {
       answerData.code = answer.code;
@@ -457,19 +458,10 @@ exports.getApplications = async (req, res, next) => {
   try {
     // Check if user is a recruiter
     if (req.user.role === 'recruiter') {
-      // Find all jobs created by this recruiter
-      // We need to require Job model at top, let's assume it's available or add it
-      const Job = require('../models/Job');
-      const jobs = await Job.find({ recruiter: req.user._id }).select('_id');
-      const jobIds = jobs.map(job => job._id);
-
-      const applications = await Application.find({ jobId: { $in: jobIds } })
-        .populate('jobId', 'title parsedData.domain status')
-        .populate('candidateId')
-        .populate({
-          path: 'candidateId',
-          populate: { path: 'userId', select: 'email profile' }
-        })
+      // By default, show all applications globally for recruiters
+      const applications = await Application.find()
+        .populate('job', 'title status')
+        .populate('assessment', 'title')
         .sort({ createdAt: -1 });
 
       return res.status(200).json({
@@ -507,10 +499,10 @@ exports.getApplications = async (req, res, next) => {
 exports.getApplicationById = async (req, res, next) => {
   try {
     const application = await Application.findById(req.params.id)
-      .populate('jobId')
-      .populate('assessmentId')
+      .populate('job')
+      .populate('assessment')
       .populate({
-        path: 'candidateId',
+        path: 'candidate',
         populate: { path: 'userId', select: 'email profile' }
       });
 

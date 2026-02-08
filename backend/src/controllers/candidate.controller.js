@@ -65,10 +65,32 @@ exports.uploadResume = async (req, res, next) => {
   });
 };
 
+exports.getCandidates = async (req, res, next) => {
+  try {
+    // Show all candidates globally for recruiters
+    const candidates = await Candidate.find()
+      .populate('userId', 'email profile')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: candidates.length,
+      data: candidates
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getProfile = async (req, res, next) => {
   try {
-    const candidate = await Candidate.findOne({ userId: req.user._id })
-      .populate('userId', 'email profile');
+    const id = req.params.id || req.user._id;
+
+    // Check if searching by Candidate ID or User ID (fallback)
+    let candidate = await Candidate.findById(id).populate('userId', 'email profile');
+    if (!candidate) {
+      candidate = await Candidate.findOne({ userId: id }).populate('userId', 'email profile');
+    }
 
     if (!candidate) {
       return res.status(404).json({
@@ -88,8 +110,9 @@ exports.getProfile = async (req, res, next) => {
 
 exports.updateProfile = async (req, res, next) => {
   try {
+    const userId = req.params.id || req.user._id;
     const candidate = await Candidate.findOneAndUpdate(
-      { userId: req.user._id },
+      { userId: userId },
       { $set: req.body },
       { new: true }
     );
@@ -97,6 +120,29 @@ exports.updateProfile = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: candidate
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteCandidate = async (req, res, next) => {
+  try {
+    const candidate = await Candidate.findByIdAndDelete(req.params.id);
+    if (!candidate) {
+      return res.status(404).json({
+        success: false,
+        message: 'Candidate not found'
+      });
+    }
+
+    // Also delete user if requested or as cleanup
+    const User = require('../models/User');
+    await User.findByIdAndDelete(candidate.userId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Candidate and associated user account deleted successfully'
     });
   } catch (error) {
     next(error);

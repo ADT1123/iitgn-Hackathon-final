@@ -4,15 +4,23 @@ const router = express.Router();
 const {
   uploadResume,
   getProfile,
-  updateProfile
+  updateProfile,
+  getCandidates,
+  deleteCandidate
 } = require('../controllers/candidate.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 
 router.use(protect);
-router.use(authorize('candidate'));
 
-router.get('/profile', getProfile);
-router.put('/profile', updateProfile);
-router.post('/upload-resume', uploadResume);
+// Recruiter specific routes
+router.get('/all', authorize('recruiter'), getCandidates);
+router.delete('/:id', authorize('recruiter'), deleteCandidate);
+router.put('/profile/:id', authorize('recruiter'), updateProfile);
+router.get('/profile/:id', authorize('recruiter'), getProfile);
+
+// Common/Candidate routes
+router.get('/profile', getProfile); // Get own profile
+router.put('/profile', authorize('candidate'), updateProfile);
+router.post('/upload-resume', authorize('candidate'), uploadResume);
 
 module.exports = router;
