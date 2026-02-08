@@ -455,6 +455,31 @@ async function updateLeaderboard(jobId) {
 
 exports.getApplications = async (req, res, next) => {
   try {
+    // Check if user is a recruiter
+    if (req.user.role === 'recruiter') {
+      // Find all jobs created by this recruiter
+      // We need to require Job model at top, let's assume it's available or add it
+      const Job = require('../models/Job');
+      const jobs = await Job.find({ recruiter: req.user._id }).select('_id');
+      const jobIds = jobs.map(job => job._id);
+
+      const applications = await Application.find({ jobId: { $in: jobIds } })
+        .populate('jobId', 'title parsedData.domain status')
+        .populate('candidateId')
+        .populate({
+          path: 'candidateId',
+          populate: { path: 'userId', select: 'email profile' }
+        })
+        .sort({ createdAt: -1 });
+
+      return res.status(200).json({
+        success: true,
+        count: applications.length,
+        data: applications
+      });
+    }
+
+    // Default: Candidate logic
     const candidate = await Candidate.findOne({ userId: req.user._id });
 
     if (!candidate) {

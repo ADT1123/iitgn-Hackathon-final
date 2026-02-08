@@ -1,117 +1,154 @@
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
+const FormData = require('form-data');
+const pdfParse = require('pdf-parse');
 
+// Sarvam API Client Configuration
+const SARVAM_API_KEY = process.env.SARVAM_API_KEY;
 
-let genAI = null;
-console.log('Initializing Gemini AI...');
-console.log('GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
-console.log('GEMINI_API_KEY value:', process.env.GEMINI_API_KEY ? 'SET (length: ' + process.env.GEMINI_API_KEY.length + ')' : 'NOT SET');
+console.log('🚀 Initializing All-Sarvam Resume Service...');
 
-if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here') {
-  try {
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    console.log('✅ Gemini AI initialized successfully');
-  } catch (error) {
-    console.error('❌ Failed to initialize Gemini AI:', error.message);
-  }
-} else {
-  console.warn('⚠️  Gemini API Key not configured - will use mock data');
+/**
+ * Smart Fallback for Analysis (Last resort if Sarvam Chat fails)
+ */
+function generateFallback(resumeText, jobDescription, reason) {
+  console.log(`⚠️ Sarvam Analysis Fallback (${reason})`);
+  return {
+    score: 60,
+    summary: `[SARVAM FALLBACK: ${reason}] Manual review required. The system was unable to complete the AI analysis at this moment.`,
+    candidatePersona: "Candidate",
+    marketSalaryRange: "Consult Recruiter",
+    matchingSkills: ["To be reviewed"],
+    missingSkills: ["To be reviewed"],
+    strengths: ["Manual check pending"],
+    weaknesses: ["AI analysis unavailable"],
+    recommendation: "Review Needed"
+  };
 }
 
-exports.analyzeResume = async (fileBuffer, jobDescription) => {
+/**
+ * Extracts text from PDF using Sarvam AI parsepdf
+ */
+async function extractTextFromPDF(fileBuffer, originalname) {
+  if (SARVAM_API_KEY) {
+    try {
+      console.log('Attempting PDF extraction with Sarvam AI...');
+      const formData = new FormData();
+      formData.append('file', fileBuffer, {
+        filename: originalname || 'resume.pdf',
+        contentType: 'application/pdf'
+      });
+
+      // Endpoint: https://api.sarvam.ai/parse/parsepdf (as per latest docs)
+      const response = await axios.post('https://api.sarvam.ai/parse/parsepdf', formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'api-subscription-key': SARVAM_API_KEY
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        timeout: 30000 // Higher timeout for large PDFs
+      });
+
+      if (response.data && response.data.text) {
+        console.log('✅ Sarvam Extraction Success');
+        return response.data.text;
+      }
+    } catch (error) {
+      console.warn('⚠️ Sarvam Extraction failed:', error.message);
+      // If it's a 502, we log it and move to local backup
+      if (error.response) console.error('Status:', error.response.status);
+    }
+  }
+
+  // Fallback to local pdf-parse
+  console.log('Using local parser (Sarvam endpoint unavailable)...');
   try {
-    // 1. Check API Key
-    if (!genAI) {
-      console.warn('Gemini API Key missing or invalid - returning mock data');
-      return {
-        score: 75,
-        summary: "This is a mock analysis. Configure GEMINI_API_KEY in your .env file for real AI-powered results. The candidate shows promise with relevant technical skills.",
-        matchingSkills: ["JavaScript", "React", "Node.js", "Problem Solving"],
-        missingSkills: ["Python", "AWS", "Docker"],
-        strengths: [
-          "Strong foundation in modern web development",
-          "Good understanding of full-stack technologies",
-          "Demonstrated problem-solving abilities"
-        ],
-        weaknesses: [
-          "Limited cloud platform experience",
-          "Could benefit from containerization knowledge"
-        ],
-        recommendation: "Potential Fit - Consider for interview"
-      };
+    const data = await pdfParse(fileBuffer);
+    return data.text;
+  } catch (error) {
+    console.error('❌ Local parsing also failed:', error.message);
+    return "";
+  }
+}
+
+/**
+ * Main Analysis function using Sarvam AI exclusively
+ */
+exports.analyzeResume = async (fileBuffer, jobDescription, originalname) => {
+  let resumeText = '';
+
+  try {
+    // 1. Text Extraction
+    resumeText = await extractTextFromPDF(fileBuffer, originalname);
+    resumeText = resumeText.replace(/\n\s*\n/g, '\n').trim();
+
+    if (!resumeText || resumeText.length < 20) {
+      console.warn('No text extracted from PDF.');
+    } else {
+      console.log(`Text extracted (${resumeText.length} chars). Analyzing with Sarvam-M...`);
     }
 
-    // 2. AI Analysis directly with PDF Buffer
-    console.log('Sending PDF to Gemini (Size: ' + fileBuffer.length + ' bytes)...');
+    // 2. Analysis with Sarvam AI Chat Completion (sarvam-m)
+    if (!SARVAM_API_KEY) {
+      console.error('SARVAM_API_KEY is missing.');
+      return generateFallback(resumeText, jobDescription, "API Key Missing");
+    }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+    const prompt = `
+      Act as a Senior Recruiter. Analyze this Resume Text against this Job Description.
+      
+      Job Description:
+      ${jobDescription}
 
-    const parts = [
-      {
-        inlineData: {
-          mimeType: "application/pdf",
-          data: fileBuffer.toString("base64")
-        }
-      },
-      {
-        text: `
-          Act as a Senior Technical Recruiter at a top-tier tech company. 
-          Analyze the attached resume against the provided Job Description.
-          
-          Job Description:
-          ${jobDescription.substring(0, 2000)}
-          
-          Evaluate based on:
-          1. Skill match (technical and soft skills)
-          2. Experience relevance
-          3. Educational background
-          4. Potential gaps or red flags
-          
-          Return a JSON object with the following fields:
-          - score: integer (0-100) representing overall match
-          - summary: strings, a high-level professional assessment (3-4 sentences)
-          - matchingSkills: array of strings containing skills found in both resume and JD
-          - missingSkills: array of strings containing skills required by JD but missing in resume
-          - strengths: array of 3 key professional strengths found in the resume
-          - weaknesses: array of 2-3 areas for improvement or missing qualifications
-          - recommendation: string, a final hiring recommendation (e.g., "Highly Recommend", "Potential Fit", "Not Recommended")
-          
-          CRITICAL: Output MUST be valid JSON. No conversational text, no markdown code blocks.
-        `
-      }
-    ];
+      Resume Text:
+      ${resumeText.substring(0, 10000)}
 
-    const result = await model.generateContent(parts);
-    const responseText = result.response.text();
-    console.log('Gemini Analysis complete');
+      Return a JSON object with exactly these fields:
+      - score: integer (0-100)
+      - summary: 3-4 sentence professional summary
+      - candidatePersona: 2-4 word role title
+      - marketSalaryRange: estimated salary string
+      - matchingSkills: array of strings
+      - missingSkills: array of strings
+      - strengths: array of strings
+      - weaknesses: array of strings
+      - recommendation: "Selected", "Maybe", or "Not Selected"
+      
+      Output valid JSON only.
+    `;
 
-    // Robust JSON parsing
     try {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
-      return JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error('JSON Parse Error. Raw response:', responseText);
-      throw new Error('Failed to parse AI analysis results');
+      const response = await axios.post('https://api.sarvam.ai/v1/chat/completions', {
+        model: "sarvam-m",
+        messages: [
+          { role: "system", content: "You are a professional AI recruiter. Output valid JSON only." },
+          { role: "user", content: prompt }
+        ],
+        response_format: { type: "json_object" }
+      }, {
+        headers: {
+          'api-subscription-key': SARVAM_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        timeout: 60000 // Generative AI can be slow
+      });
+
+      const content = response.data.choices[0].message.content;
+      console.log('✅ Sarvam Analysis Success');
+
+      // Clean and Parse JSON
+      const cleanedContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanedContent);
+
+    } catch (apiError) {
+      console.error('❌ Sarvam Chat API Error:', apiError.message);
+      if (apiError.response) console.error('Status:', apiError.response.status);
+      return generateFallback(resumeText, jobDescription, "API Service Unavailable");
     }
 
   } catch (error) {
-    console.error("Resume analysis error:", error);
-    console.error("Error details:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
-
-    // Improve error message
-    if (error.message && error.message.includes('API key')) {
-      throw new Error('Invalid Gemini API Key');
-    }
-    if (error.message && error.message.includes('unsupported')) {
-      throw new Error('Unsupported file format or corrupt PDF');
-    }
-
-    // Return the actual error message for debugging
-    throw new Error(error.message || "Failed to analyze resume with AI");
+    console.error("Critical Resume Service Error:", error.message);
+    return generateFallback(resumeText, jobDescription, "Unexpected System Error");
   }
 };

@@ -64,7 +64,8 @@ Required Skills: ${job.requiredSkills?.join(', ') || 'N/A'}
     // Call resume service
     const analysis = await resumeService.analyzeResume(
       req.file.buffer,
-      finalJobDescription
+      finalJobDescription,
+      req.file.originalname
     );
 
     // Return response

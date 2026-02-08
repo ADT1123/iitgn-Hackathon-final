@@ -41,7 +41,9 @@ export const ResumeScreeningPage: React.FC = () => {
 
     try {
       const response = await resumeAPI.screenResume(formData);
-      setResult(response.data.data);
+      // Fix: The analysis object is nested in response.data.data.analysis
+      // If analysis is missing, fallback to response.data.data or null
+      setResult(response.data.data.analysis || response.data.data);
     } catch (err: any) {
       console.error('Screening failed:', err);
       setError(err.response?.data?.message || 'Failed to analyze resume');
@@ -152,7 +154,8 @@ export const ResumeScreeningPage: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-medium text-slate-700 mb-2">Matching Skills</h3>
                   <div className="flex flex-wrap gap-2">
-                    {result.matchingSkills.map((skill: string, idx: number) => (
+                    {/* SAFEGUARD: Add fallback array if matchingSkills is undefined */}
+                    {(result.matchingSkills || []).map((skill: string, idx: number) => (
                       <Badge key={idx} variant="success">{skill}</Badge>
                     ))}
                   </div>
@@ -161,7 +164,8 @@ export const ResumeScreeningPage: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-medium text-slate-700 mb-2">Missing Skills</h3>
                   <div className="flex flex-wrap gap-2">
-                    {result.missingSkills.map((skill: string, idx: number) => (
+                    {/* SAFEGUARD: Add fallback array if missingSkills is undefined */}
+                    {(result.missingSkills || []).map((skill: string, idx: number) => (
                       <Badge key={idx} variant="danger">{skill}</Badge>
                     ))}
                   </div>
