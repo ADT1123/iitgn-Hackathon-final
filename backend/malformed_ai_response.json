@@ -2,41 +2,46 @@
   "questions": [
     {
       "type": "objective",
-      "question": "What is the primary goal of using AI in marketing?",
-      "options": ["To replace human marketers", "To increase ad spend", "To automate repetitive tasks and improve targeting", "To eliminate the need for data analysis"],
-      "correctAnswer": 2,
-      "points": 2,
-      "skill": "ai"
-    },
-    {
-      "type": "objective",
-      "question": "Which of the following is a key component of a successful marketing strategy?",
-      "options": ["High budget allocation", "Exclusive focus on social media", "Clear understanding of the target audience", "Random ad placements"],
-      "correctAnswer": 2,
-      "points": 2,
-      "skill": "marketing"
-    },
-    {
-      "type": "objective",
-      "question": "What is the most effective way to measure the success of a marketing campaign?",
-      "options": ["Number of likes on social media", "Increase in brand awareness", "Conversion rate and return on investment (ROI)", "Number of website visitors"],
-      "correctAnswer": 2,
-      "points": 2,
-      "skill": "marketing"
-    },
-    {
-      "type": "objective",
-      "question": "Which of the following is a crucial aspect of effective communication in marketing?",
-      "options": ["Using complex jargon", "Focusing only on the product", "Understanding the audience's needs and preferences", "Ignoring feedback"],
-      "correctAnswer": 2,
-      "points": 2,
-      "skill": "communication"
-    },
-    {
-      "type": "objective",
-      "question": "How can AI improve sales forecasting?",
-      "options": ["By predicting customer preferences with high accuracy", "By eliminating the need for market research", "By increasing the number of sales calls", "By reducing the price of products"],
+      "question": "What is the most important aspect of effective leadership?",
+      "options": ["Clear communication", "Setting unrealistic goals", "Micromanaging tasks", "Avoiding conflict"],
       "correctAnswer": 0,
       "points": 2,
-      "skill": "ai"
-    }}]
+      "skill": "Leadership"
+    },
+    {
+      "type": "objective",
+      "question": "Which of the following is a key component of people management?",
+      "options": ["Ignoring employee feedback", "Focusing solely on individual performance", "Encouraging teamwork and collaboration", "Avoiding difficult conversations"],
+      "correctAnswer": 2,
+      "points": 2,
+      "skill": "People Management"
+    },
+    {
+      "type": "objective",
+      "question": "What is the best way to communicate a difficult message to your team?",
+      "options": ["Sending an email without context", "Calling a meeting and being direct", "Avoiding the conversation altogether", "Gossiping about the issue"],
+      "correctAnswer": 1,
+      "points": 2,
+      "skill": "Communication"
+    },
+    {
+      "type": "objective",
+      "question": "What is the primary goal of strategic planning in leadership?",
+      "options": ["To set short-term goals only", "To focus on immediate problems", "To align team efforts with long-term organizational goals", "To avoid planning altogether"],
+      "correctAnswer": 2,
+      "points": 2,
+      "skill": "Strategic Planning"
+    },
+    {
+      "type": "objective",
+      "question": "How should a manager approach a problem that is causing conflict within the team?",
+      "options": ["Ignore the conflict and hope it resolves itself", "Take sides and escalate the conflict", "Facilitate a discussion to find a mutually beneficial solution", "Punish the entire team"],
+      "correctAnswer": 2,
+      "points": 2,
+      "skill": "Problem-Solving"
+    },
+    {
+      "type": "objective",
+      "question": "What is the most effective way to motivate a team?",
+      "options": ["Offering monetary incentives only", "Providing regular feedback and recognition", "Setting unrealistic deadlines", "Micromanaging every task"],
+      "correctAnswer"}]}

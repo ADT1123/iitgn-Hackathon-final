@@ -54,9 +54,10 @@ export const CandidateJobs: React.FC = () => {
   };
 
   const handleApply = (job: any) => {
-    if (job.assessment) {
+    const assessmentId = job.assessment?._id || job.assessment;
+    if (assessmentId) {
       // Direct navigation to assessment
-      navigate(`/candidate/assessment/${job.assessment}`);
+      navigate(`/candidate/assessment/${assessmentId}`);
     } else {
       // Fallback for jobs without assessment (should generally have one)
       alert('This job does not have an active assessment configured yet. Please check back later.');

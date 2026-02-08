@@ -13,6 +13,21 @@ exports.startAssessment = async (req, res, next) => {
 
     const assessment = await Assessment.findOne({ job: jobId });
     if (!assessment) {
+      // Fallback: If not found by job, maybe jobId is actually assessmentId
+      const assessmentById = await Assessment.findById(jobId);
+      if (assessmentById) {
+        return res.status(200).json({
+          success: true,
+          message: 'Found assessment by ID',
+          data: {
+            applicationId: null, // Need to handle creation below if needed
+            questions: assessmentById.questions,
+            duration: assessmentById.duration,
+            jobTitle: assessmentById.title
+          }
+        });
+      }
+
       return res.status(404).json({
         success: false,
         message: 'Assessment not found. Please contact recruiter.'
@@ -56,7 +71,7 @@ exports.startAssessment = async (req, res, next) => {
           data: {
             applicationId: existingApp._id,
             questions: sanitizedQuestions,
-            duration: job.assessmentConfig.duration,
+            duration: assessment.duration,
             jobTitle: job.title,
             startedAt: existingApp.startedAt
           }
@@ -91,7 +106,7 @@ exports.startAssessment = async (req, res, next) => {
       return question;
     });
 
-    const job = await JobDescription.findById(jobId);
+    const job = await Job.findById(jobId);
 
     res.status(200).json({
       success: true,
@@ -99,7 +114,7 @@ exports.startAssessment = async (req, res, next) => {
       data: {
         applicationId: application._id,
         questions: sanitizedQuestions,
-        duration: job.assessmentConfig.duration,
+        duration: assessment.duration,
         jobTitle: job.title
       }
     });
@@ -122,7 +137,7 @@ exports.submitAnswer = async (req, res, next) => {
       });
     }
 
-    const assessment = await Assessment.findById(application.assessmentId);
+    const assessment = await Assessment.findById(application.assessment);
     const question = assessment.questions.id(questionId);
 
     if (!question) {
@@ -261,9 +276,9 @@ exports.submitAssessment = async (req, res, next) => {
 
     console.log('📊 Finalizing assessment...');
     const application = await Application.findById(applicationId)
-      .populate('assessmentId')
-      .populate('candidateId')
-      .populate('jobId');
+      .populate('assessment')
+      .populate('candidate')
+      .populate('job');
 
     if (!application) {
       return res.status(404).json({
@@ -273,138 +288,51 @@ exports.submitAssessment = async (req, res, next) => {
     }
 
     application.status = 'completed';
-    application.submittedAt = new Date();
+    application.completedAt = new Date();
 
     // Calculate scores
-    const scores = {
-      objective: { scored: 0, total: 0 },
-      subjective: { scored: 0, total: 0 },
-      programming: { scored: 0, total: 0, testCasesPassed: 0, totalTestCases: 0 }
-    };
+    let totalScore = 0;
+    let maxScore = 0;
 
     application.answers.forEach(answer => {
-      if (answer.type === 'objective') {
-        scores.objective.scored += answer.score || 0;
-        scores.objective.total += answer.maxScore || 10;
-      } else if (answer.type === 'subjective') {
-        scores.subjective.scored += answer.score || 0;
-        scores.subjective.total += answer.maxScore || 10;
-      } else if (answer.type === 'programming') {
-        scores.programming.scored += answer.score || 0;
-        scores.programming.total += answer.maxScore || 20;
-        if (answer.executionResults) {
-          scores.programming.testCasesPassed += answer.executionResults.filter(r => r.passed).length;
-          scores.programming.totalTestCases += answer.executionResults.length;
-        }
-      }
+      totalScore += answer.score || 0;
+      maxScore += answer.maxScore || 10;
     });
 
-    // Calculate percentages
-    scores.objective.percentage = scores.objective.total > 0 ?
-      Math.round((scores.objective.scored / scores.objective.total) * 100) : 0;
-    scores.subjective.percentage = scores.subjective.total > 0 ?
-      Math.round((scores.subjective.scored / scores.subjective.total) * 100) : 0;
-    scores.programming.percentage = scores.programming.total > 0 ?
-      Math.round((scores.programming.scored / scores.programming.total) * 100) : 0;
+    application.totalScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
 
-    const totalScored = scores.objective.scored + scores.subjective.scored + scores.programming.scored;
-    const totalMax = scores.objective.total + scores.subjective.total + scores.programming.total;
-
-    scores.overall = {
-      scored: totalScored,
-      total: totalMax,
-      percentage: totalMax > 0 ? Math.round((totalScored / totalMax) * 100) : 0,
-      weightedScore: totalScored
-    };
-
-    application.scores = scores;
-
-    // Skill analysis
-    const job = application.jobId;
-    const skillAnalysis = [];
-
-    if (job.parsedData && job.parsedData.requiredSkills) {
-      job.parsedData.requiredSkills.forEach(skillObj => {
-        const skillQuestions = application.answers.filter(ans => {
-          const question = application.assessmentId.questions.id(ans.questionId);
-          return question && question.skillMapping === skillObj.skill;
-        });
-
-        if (skillQuestions.length > 0) {
-          const skillScore = skillQuestions.reduce((sum, ans) => sum + (ans.score || 0), 0);
-          const skillMax = skillQuestions.reduce((sum, ans) => sum + (ans.maxScore || 10), 0);
-          const percentage = Math.round((skillScore / skillMax) * 100);
-
-          skillAnalysis.push({
-            skill: skillObj.skill,
-            score: skillScore,
-            maxScore: skillMax,
-            performance: percentage >= 80 ? 'excellent' :
-              percentage >= 60 ? 'good' :
-                percentage >= 40 ? 'average' : 'poor'
-          });
-        }
-      });
-    }
-
-    application.skillAnalysis = skillAnalysis;
-
-    // Resume-skill mismatch detection
-    if (application.candidateId.resume && application.candidateId.resume.parsedData) {
-      console.log('🔍 Analyzing resume-skill mismatch...');
-      try {
-        const mismatchAnalysis = await GeminiService.analyzeResumeSkillMismatch(
-          application.candidateId.resume.parsedData.skills,
-          skillAnalysis
-        );
-
-        application.resumeSkillMismatch = {
-          detected: mismatchAnalysis.mismatches.length > 0,
-          mismatches: mismatchAnalysis.mismatches
-        };
-
-        if (mismatchAnalysis.mismatches.some(m => m.severity === 'high')) {
-          application.status = 'flagged';
-        }
-      } catch (err) {
-        console.error('Mismatch analysis error:', err);
-      }
-    }
-
-    // Generate AI insights
-    console.log('🤖 Generating AI insights...');
+    // AI evaluation logic
     try {
-      const insights = await GeminiService.generateCandidateInsights(application.toObject());
+      const insights = await sarvamService.generateCandidateInsights(application);
       application.aiInsights = insights;
     } catch (err) {
-      console.error('Insights generation error:', err);
+      console.error('AI Insights generation error:', err);
     }
 
     // Check qualification
-    const cutoff = job.assessmentConfig.cutoffScore || 60;
-    if (scores.overall.percentage >= cutoff && application.status !== 'flagged') {
-      application.status = 'qualified';
-    } else if (application.status !== 'flagged') {
+    const passingScore = application.assessment?.passingScore || 60;
+    if (application.totalScore >= passingScore) {
+      application.status = 'shortlisted';
+    } else {
       application.status = 'rejected';
     }
 
     await application.save();
 
     // Update leaderboard
-    console.log('🏆 Updating leaderboard...');
-    await updateLeaderboard(application.jobId._id);
+    if (application.job) {
+      console.log('🏆 Updating leaderboard...');
+      await updateLeaderboard(application.job._id);
+    }
 
     res.status(200).json({
       success: true,
       message: 'Assessment submitted successfully',
       data: {
         applicationId: application._id,
-        scores: application.scores,
+        totalScore: application.totalScore,
         status: application.status,
-        skillAnalysis: application.skillAnalysis,
-        insights: application.aiInsights,
-        rank: application.rank,
-        percentile: application.percentile
+        insights: application.aiInsights
       }
     });
   } catch (error) {
@@ -482,8 +410,8 @@ exports.getApplications = async (req, res, next) => {
       });
     }
 
-    const applications = await Application.find({ candidateId: candidate._id })
-      .populate('jobId', 'title parsedData.domain status')
+    const applications = await Application.find({ candidate: candidate._id })
+      .populate('job', 'title status')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -503,7 +431,7 @@ exports.getApplicationById = async (req, res, next) => {
       .populate('assessment')
       .populate({
         path: 'candidate',
-        populate: { path: 'userId', select: 'email profile' }
+        populate: { path: 'userId', select: 'email name profile' }
       });
 
     if (!application) {
@@ -524,19 +452,19 @@ exports.getApplicationById = async (req, res, next) => {
 
 exports.getJobApplications = async (req, res, next) => {
   try {
-    const { jobId } = req.params;
+    const { jobId: job } = req.params;
     const { status } = req.query;
 
-    const filter = { jobId };
+    const filter = { job };
     if (status) filter.status = status;
 
     const applications = await Application.find(filter)
-      .populate('candidateId')
+      .populate('candidate')
       .populate({
-        path: 'candidateId',
-        populate: { path: 'userId', select: 'email profile' }
+        path: 'candidate',
+        populate: { path: 'userId', select: 'email name profile' }
       })
-      .sort({ 'scores.overall.weightedScore': -1 });
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -632,8 +560,8 @@ exports.bulkUpdate = async (req, res, next) => {
 exports.getAnalytics = async (req, res, next) => {
   try {
     const application = await Application.findById(req.params.id)
-      .populate('assessmentId', 'title description')
-      .select('scores skillAnalysis aiInsights timeSpent status createdAt');
+      .populate('assessment', 'title description')
+      .select('totalScore skillAnalysis aiInsights timeSpent status createdAt');
 
     if (!application) {
       return res.status(404).json({
@@ -654,9 +582,9 @@ exports.getAnalytics = async (req, res, next) => {
 exports.downloadReport = async (req, res, next) => {
   try {
     const application = await Application.findById(req.params.id)
-      .populate('candidateId')
-      .populate('jobId')
-      .populate('assessmentId');
+      .populate('candidate')
+      .populate('job')
+      .populate('assessment');
 
     if (!application) {
       return res.status(404).json({
@@ -670,12 +598,12 @@ exports.downloadReport = async (req, res, next) => {
       success: true,
       message: 'Report data retrieved successfully',
       data: {
-        candidateName: application.candidateId?.userId?.name || 'Unknown',
-        jobTitle: application.jobId?.title || 'Unknown Job',
-        assessmentTitle: application.assessmentId?.title || 'Unknown Assessment',
-        scores: application.scores,
+        candidateName: application.candidate?.userId?.name || 'Unknown',
+        jobTitle: application.job?.title || 'Unknown Job',
+        assessmentTitle: application.assessment?.title || 'Unknown Assessment',
+        totalScore: application.totalScore,
         status: application.status,
-        submittedAt: application.submittedAt
+        completedAt: application.completedAt
       }
     });
   } catch (error) {

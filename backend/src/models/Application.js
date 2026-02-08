@@ -44,6 +44,11 @@ const applicationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Assessment'
   },
+  candidate: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Candidate',
+    required: true
+  },
   candidateName: {
     type: String,
     required: true,

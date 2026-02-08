@@ -51,13 +51,15 @@ export const CandidateAssessment: React.FC = () => {
 
   const loadAssessment = async () => {
     try {
-      // Try to start/resume assessment immediately to check status
+      // The assessmentId from params might actually be an Assessment ID 
+      // but our backend startAssessment endpoint expects a Job ID.
+      // This is a known inconsistency we are fixing.
       const response = await applicationAPI.startAssessment(assessmentId!);
       const data = response.data.data;
 
       setAssessment({
         _id: assessmentId,
-        title: data.jobTitle,
+        title: data.jobTitle || 'Assessment',
         questions: data.questions,
         timeLimit: data.duration
       });

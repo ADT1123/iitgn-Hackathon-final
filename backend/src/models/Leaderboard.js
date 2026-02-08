@@ -2,9 +2,9 @@
 const mongoose = require('mongoose');
 
 const leaderboardSchema = new mongoose.Schema({
-  jobId: {
+  job: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'JobDescription',
+    ref: 'Job',
     required: true,
     unique: true
   },

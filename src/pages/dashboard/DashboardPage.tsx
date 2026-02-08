@@ -145,7 +145,7 @@ export const DashboardPage: React.FC = () => {
             <span className="text-slate-200">|</span>
             <span className="text-slate-400">{new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">{getTimeBasedGreeting()}, <span className="text-blue-600">{user.name.split(' ')[0]}</span></h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">{getTimeBasedGreeting()}, <span className="text-blue-600">{(user?.name || 'Recruiter').split(' ')[0]}</span></h1>
           <p className="text-slate-500 mt-1.5 text-xs font-bold uppercase tracking-tight opacity-70">Pipeline pulse is healthy • {stats.pendingReviews} urgent actions</p>
         </div>
         <div className="flex items-center gap-3">
