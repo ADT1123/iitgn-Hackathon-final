@@ -87,6 +87,8 @@ exports.startAssessment = async (req, res, next) => {
 
     const application = await Application.create({
       candidate: candidate._id,
+      candidateName: req.user.profile?.firstName ? `${req.user.profile.firstName} ${req.user.profile.lastName || ''}` : req.user.email.split('@')[0],
+      candidateEmail: req.user.email,
       job: jobId,
       assessment: assessment._id,
       status: 'in-progress',
@@ -345,17 +347,17 @@ exports.submitAssessment = async (req, res, next) => {
 async function updateLeaderboard(jobId) {
   try {
     const applications = await Application.find({
-      jobId,
-      status: { $in: ['completed', 'qualified', 'rejected', 'flagged'] }
+      job: jobId,
+      status: { $in: ['completed', 'shortlisted', 'rejected', 'flagged'] }
     })
-      .sort({ 'scores.overall.weightedScore': -1 })
-      .select('candidateId scores.overall.weightedScore status');
+      .sort({ totalScore: -1 })
+      .select('candidate totalScore status');
 
     const rankings = applications.map((app, index) => ({
       applicationId: app._id,
-      candidateId: app.candidateId,
+      candidateId: app.candidate,
       rank: index + 1,
-      score: app.scores.overall.weightedScore,
+      score: app.totalScore,
       percentile: Math.round(((applications.length - index) / applications.length) * 100),
       status: app.status
     }));
