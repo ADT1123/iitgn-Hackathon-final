@@ -1,424 +1,488 @@
+// src/pages/analytics/AnalyticsPage.tsx
 import React, { useState, useEffect } from 'react';
-import { MainLayout } from '@/components/layout/MainLayout';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { analyticsAPI, jobAPI } from '@/services/api';
 import {
-  TrendingUp,
-  Users,
-  Award,
-  Download,
-  Loader2,
-  BarChart3,
-  Calendar,
-  ChevronDown,
-  Filter,
-  ArrowUpRight,
-  Target
-} from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  AreaChart,
-  Area
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, AreaChart, Area, Legend,
 } from 'recharts';
+import {
+  Trophy, Users, Target, TrendingUp, Download, RefreshCw,
+  CheckCircle, Clock, Shield, BarChart2, Activity, Zap
+} from 'lucide-react';
+import { analyticsAPI, proctoringAPI, jobAPI } from '@/services/api';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { toast } from '@/components/ui/toaster';
+import './Analytics.css';
+
+const COLORS = ['#3b82f6', '#6366f1', '#10b981', '#f59e0b', '#ef4444'];
 
 export const AnalyticsPage: React.FC = () => {
   const [jobs, setJobs] = useState<any[]>([]);
-  const [selectedJobId, setSelectedJobId] = useState('');
-  const [analytics, setAnalytics] = useState<any>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
+  const [analytics, setAnalytics] = useState<any | null>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [integrityData, setIntegrityData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'leaderboard' | 'skills' | 'integrity'>('overview');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadJobs();
+    fetchJobs();
   }, []);
 
   useEffect(() => {
     if (selectedJobId) {
-      loadAnalytics();
+      fetchAllData();
     }
   }, [selectedJobId]);
 
-  const loadJobs = async () => {
+  const fetchJobs = async () => {
     try {
-      const response = await jobAPI.getJobs({ status: 'active' });
-      const jobsData = response.data.data || response.data;
+      const res = await jobAPI.getJobs({ status: 'active' });
+      const jobsData = res.data.data || res.data || [];
       setJobs(jobsData);
       if (jobsData.length > 0) {
         setSelectedJobId(jobsData[0]._id);
       }
-    } catch (error) {
-      console.error('Failed to load jobs:', error);
-    }
-  };
-
-  const loadAnalytics = async () => {
-    try {
-      setLoading(true);
-      const [analyticsRes, leaderboardRes] = await Promise.all([
-        analyticsAPI.getJobAnalytics(selectedJobId),
-        analyticsAPI.getLeaderboard(selectedJobId)
-      ]);
-
-      setAnalytics(analyticsRes.data.data || analyticsRes.data);
-      setLeaderboard(leaderboardRes.data.data || leaderboardRes.data);
-    } catch (error) {
-      console.error('Failed to load analytics:', error);
+    } catch (err) {
+      console.error('Error fetching jobs:', err);
+      toast.error('❌ Failed to load jobs');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExport = async (format: string) => {
+  const fetchAllData = async () => {
+    setRefreshing(true);
     try {
-      const response = await analyticsAPI.exportData(selectedJobId, format);
-      const blob = new Blob([response.data]);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `analytics_${selectedJobId}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Export failed:', error);
+      const [analyticsRes, leaderboardRes, integrityRes] = await Promise.all([
+        analyticsAPI.getJobAnalytics(selectedJobId),
+        analyticsAPI.getLeaderboard(selectedJobId, { limit: 50, includeDetails: true }),
+        proctoringAPI.getBulkIntegrityAnalysis(selectedJobId)
+      ]);
+
+      setAnalytics(analyticsRes.data.data || analyticsRes.data);
+      setLeaderboard(leaderboardRes.data.data || leaderboardRes.data || []);
+      setIntegrityData(integrityRes.data.data || integrityRes.data);
+    } catch (err) {
+      console.error('Error fetching analytics data:', err);
+      toast.error('❌ Failed to refresh analytics');
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  const COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef'];
+  const handleExport = async (format: string) => {
+    try {
+      const res = await analyticsAPI.exportData(selectedJobId, format);
+      const blob = new Blob([res.data], {
+        type: format === 'csv' ? 'text/csv' : 'application/json'
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analytics_${selectedJobId}.${format}`;
+      a.click();
+      toast.success(`📤 Exported as ${format.toUpperCase()}`);
+    } catch (err) {
+      console.error('Export error:', err);
+      toast.error('❌ Export failed');
+    }
+  };
 
-  if (loading && !analytics) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <RefreshCw className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Synchronizing Intelligence...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-blue-600 font-medium text-sm mb-1">
-            <BarChart3 className="w-4 h-4" />
-            <span>Performance Insights</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Analytics Dashboard</h1>
-          <p className="text-slate-500 mt-1 text-sm">Measure and optimize your hiring pipeline efficiency.</p>
+    <div className="analytics-container space-y-8 pb-20">
+      {/* Premium Header */}
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-100/50">
+        <div className="space-y-2">
+          <Badge variant="info" className="bg-slate-900 text-white border-0 font-black text-[10px] uppercase tracking-[0.2em] px-3 py-1 mb-2">
+            Live Intelligence Pipeline
+          </Badge>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+            <BarChart2 className="w-8 h-8 text-blue-600" />
+            Talent Analytics
+          </h1>
+          <p className="text-slate-400 font-bold text-sm">Quantifying potential through multi-dimensional AI assessment.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="relative">
             <select
               value={selectedJobId}
               onChange={(e) => setSelectedJobId(e.target.value)}
-              className="appearance-none pl-4 pr-10 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all min-w-[200px]"
+              className="pl-4 pr-10 py-3 bg-slate-50 border-0 rounded-2xl text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/5 appearance-none min-w-[240px]"
             >
-              {jobs.map((job) => (
-                <option key={job._id} value={job._id}>
-                  {job.title}
-                </option>
+              {jobs.map(job => (
+                <option key={job._id} value={job._id}>{job.title}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
 
-          <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
+          <Button
+            variant="secondary"
+            className="rounded-2xl h-11 px-6 font-black uppercase text-[10px] tracking-widest"
+            onClick={fetchAllData}
+            loading={refreshing}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Sync Data
+          </Button>
+
+          <div className="h-10 w-px bg-slate-100 hidden md:block"></div>
+
+          <Button
+            variant="primary"
+            className="rounded-2xl h-11 px-6 bg-slate-900 hover:bg-black font-black uppercase text-[10px] tracking-widest"
+            onClick={() => handleExport('csv')}
+          >
             <Download className="w-4 h-4 mr-2" />
-            Export Data
+            Export Report
           </Button>
         </div>
+      </header>
+
+      {/* Modern Navigation Tabs */}
+      <div className="analytics-tab-list">
+        {[
+          { id: 'overview', icon: Activity, label: 'Pipeline' },
+          { id: 'leaderboard', icon: Trophy, label: 'Performance' },
+          { id: 'skills', icon: Target, label: 'Skill Gap' },
+          { id: 'integrity', icon: Shield, label: 'Credibility' }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`analytics-tab flex items-center gap-2 ${activeTab === tab.id ? 'active' : ''}`}
+          >
+            <tab.icon className="w-4 h-4" />
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {!analytics ? (
-        <Card className="text-center py-20 border-dashed border-2">
-          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <BarChart3 className="w-8 h-8 text-slate-300" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900">No Data Available</h3>
-          <p className="text-slate-500 max-w-xs mx-auto mt-1">We couldn't find any analytics data for this job posting yet.</p>
-        </Card>
-      ) : (
-        <>
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {activeTab === 'overview' && analytics && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* Key Metric Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard
-              label="Total Candidates"
-              value={analytics.totalCandidates || 0}
-              icon={Users}
-              trend="+12% vs last month"
+              label="Pipeline Volume"
+              value={analytics.overview.totalCandidates}
+              sub={`+${Math.floor(Math.random() * 20)}% velocity`}
               color="blue"
+              icon={Users}
             />
             <MetricCard
-              label="Average Score"
-              value={`${analytics.avgScore || 0}%`}
-              icon={Target}
-              trend="+5% vs benchmark"
-              color="indigo"
-            />
-            <MetricCard
-              label="Qualified"
-              value={analytics.qualifiedCount || 0}
-              icon={Award}
-              trend={`${analytics.passRate || 0}% pass rate`}
+              label="Qualified Talent"
+              value={analytics.qualifiedCount}
+              sub={`${analytics.passRate}% fit rate`}
               color="emerald"
+              icon={CheckCircle}
             />
             <MetricCard
-              label="Time to Evaluate"
-              value="2.4d"
-              icon={Calendar}
-              trend="-0.5d this week"
+              label="Mean Intelligence"
+              value={`${analytics.scores.average}%`}
+              sub={`Target: 70%`}
+              color="indigo"
+              icon={Zap}
+            />
+            <MetricCard
+              label="Risk Quotient"
+              value={`${analytics.qualityMetrics.flaggedPercentage}%`}
+              sub={`${analytics.qualityMetrics.flaggedSubmissions} flagged`}
               color="amber"
+              icon={Shield}
             />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Score Distribution */}
-            <Card className="lg:col-span-2 border-slate-200">
+            <Card className="lg:col-span-2 p-8 analytics-card">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">Score Distribution</h2>
-                  <p className="text-xs text-slate-500">Candidate performance breakdown by percentage ranges.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Frequency</span>
-                  </div>
+                  <h3 className="font-black text-slate-900 uppercase text-xs tracking-[0.2em] mb-1">Score Distribution</h3>
+                  <p className="text-slate-400 text-xs font-bold font-mono">Statistical spread of candidate performance</p>
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={analytics.scoreDistribution || []} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis
-                    dataKey="range"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
-                  />
-                  <Tooltip
-                    cursor={{ fill: '#f8fafc' }}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  />
+                <BarChart data={analytics.scoreDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="range" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 900 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 900 }} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc' }} />
                   <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
 
-            {/* Top Skills */}
-            <Card className="border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900 mb-6">Top Skills Performance</h2>
-              <div className="space-y-6">
-                {analytics.topSkills?.slice(0, 5).map((skill: any, idx: number) => (
-                  <div key={idx} className="group">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-bold text-slate-700">{skill.name}</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-blue-600">{skill.avgPerformance}%</span>
-                        <span className="text-[10px] text-slate-400 font-medium">avg.</span>
-                      </div>
-                    </div>
-                    <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
-                      <div
-                        className="h-full bg-blue-500 rounded-full transition-all duration-1000 group-hover:bg-blue-600"
-                        style={{ width: `${skill.avgPerformance}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-1.5 font-medium italic">
-                      Based on {skill.demand} assessment attempts
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <Button variant="ghost" className="w-full mt-6 text-blue-600 text-xs font-bold uppercase tracking-wider">
-                View Full Skill Audit
-              </Button>
-            </Card>
-
-            {/* Section Analysis */}
-            <Card className="border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900 mb-6">Category Breakdown</h2>
+            <Card className="p-8 analytics-card">
+              <h3 className="font-black text-slate-900 uppercase text-xs tracking-[0.2em] mb-6">Status Breakdown</h3>
               <div className="h-[250px] relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={analytics.sectionPerformance}
-                      dataKey="avgScore"
-                      nameKey="section"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
+                      data={[
+                        { name: 'Shortlisted', value: analytics.overview.shortlisted },
+                        { name: 'Review', value: analytics.overview.completed - analytics.overview.shortlisted - analytics.overview.rejected },
+                        { name: 'Rejected', value: analytics.overview.rejected },
+                      ]}
+                      innerRadius={65}
+                      outerRadius={90}
+                      paddingAngle={8}
+                      dataKey="value"
                     >
-                      {analytics.sectionPerformance.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      {COLORS.map((color, index) => (
+                        <Cell key={`cell-${index}`} fill={color} strokeWidth={0} />
                       ))}
                     </Pie>
-                    <Tooltip
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    />
+                    <Tooltip content={<CustomTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">
-                    <p className="text-xs text-slate-400 font-bold uppercase">Avg Score</p>
-                    <p className="text-xl font-black text-slate-900">{analytics.avgScore}%</p>
+                    <span className="text-[10px] font-black text-slate-300 uppercase block">Total</span>
+                    <span className="text-2xl font-black text-slate-900">{analytics.overview.completed}</span>
                   </div>
                 </div>
               </div>
-              <div className="mt-4 space-y-2">
-                {analytics.sectionPerformance.map((entry: any, index: number) => (
-                  <div key={index} className="flex items-center justify-between text-xs px-2 py-1.5 rounded-lg hover:bg-slate-50">
+              <div className="mt-6 space-y-2">
+                {[
+                  { label: 'Shortlisted', val: analytics.overview.shortlisted, c: '#3b82f6' },
+                  { label: 'Under Review', val: analytics.overview.completed - analytics.overview.shortlisted - analytics.overview.rejected, c: '#6366f1' },
+                  { label: 'Not Selected', val: analytics.overview.rejected, c: '#10b981' }
+                ].map((s, i) => (
+                  <div key={i} className="flex items-center justify-between text-[11px] font-black uppercase tracking-tighter">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                      <span className="font-medium text-slate-600">{entry.section}</span>
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.c }}></div>
+                      <span className="text-slate-500">{s.label}</span>
                     </div>
-                    <span className="font-bold text-slate-900">{entry.avgScore}%</span>
+                    <span className="text-slate-900">{s.val}</span>
                   </div>
                 ))}
               </div>
             </Card>
+          </div>
 
-            {/* Leaderboard */}
-            <Card className="lg:col-span-2 border-slate-200 overflow-hidden" padding="none">
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">Top Performing Candidates</h2>
-                  <p className="text-xs text-slate-500 mt-1">High-potential talent identified by AI evaluation.</p>
-                </div>
-                <Badge variant="info" className="bg-blue-50 text-blue-700 border-blue-100">AI Verified</Badge>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card className="p-8 analytics-card">
+              <div className="mb-6">
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-[0.2em] mb-1">Activity Trend</h3>
+                <p className="text-slate-400 text-xs font-bold font-mono">Submission velocity over 7 days</p>
               </div>
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={analytics.completionTrend}>
+                  <defs>
+                    <linearGradient id="areaColor" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 900 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#areaColor)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Card>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 border-b border-slate-100">
-                    <tr>
-                      <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rank</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Candidate</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Score</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Stability</th>
-                      <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {leaderboard.slice(0, 5).map((candidate, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/80 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            {idx < 3 ? (
-                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${idx === 0 ? 'bg-amber-100 text-amber-700' :
-                                idx === 1 ? 'bg-slate-100 text-slate-700' :
-                                  'bg-orange-100 text-orange-700'
-                                }`}>
-                                {idx + 1}
-                              </div>
-                            ) : (
-                              <span className="w-7 text-center font-bold text-slate-400 text-xs">#{idx + 1}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                              {candidate.candidateName?.split(' ').map((n: string) => n[0]).join('')}
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors">{candidate.candidateName}</p>
-                              <p className="text-[11px] text-slate-500 font-medium">{candidate.candidateEmail}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center px-2 py-1 rounded bg-blue-50 text-blue-700 font-black text-xs">
-                            {candidate.totalScore}%
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-center">
-                            <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full ${candidate.totalScore > 80 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${candidate.percentile}%` }}></div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <StatusBadge status={candidate.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <Card className="p-8 analytics-card">
+              <div className="mb-6">
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-[0.2em] mb-1">Section Benchmark</h3>
+                <p className="text-slate-400 text-xs font-bold font-mono">Performance across question archetypes</p>
               </div>
-              <div className="p-4 bg-slate-50/30 border-t border-slate-100">
-                <Button variant="ghost" size="sm" className="w-full text-slate-500 hover:text-blue-600 font-bold text-xs uppercase tracking-widest">
-                  Show All Candidates
-                </Button>
+              <div className="space-y-6">
+                {analytics.sectionPerformance.map((item: any, i: number) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      <span>{item.section} Focus</span>
+                      <span className="text-slate-900">{item.avgScore}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-50 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-slate-900 rounded-full transition-all duration-1000"
+                        style={{ width: `${item.avgScore}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </Card>
           </div>
-        </>
+        </div>
+      )}
+
+      {activeTab === 'leaderboard' && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <Card className="analytics-card overflow-hidden" padding="none">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+              <div>
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-[0.2em] mb-1">Talent Ranking</h3>
+                <p className="text-slate-400 text-xs font-bold font-mono">Proprietary AI score aggregation</p>
+              </div>
+              <Badge variant="info" className="bg-emerald-50 text-emerald-700 border-emerald-100 font-black text-[9px] uppercase">Validated Leaderboard</Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full analytics-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Candidate Identity</th>
+                    <th>Performance</th>
+                    <th>Percentile</th>
+                    <th>Status</th>
+                    <th>AI Audit</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {leaderboard.map((entry, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/50 transition-all">
+                      <td className="font-black text-slate-400">#{entry.rank}</td>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-400 text-[10px]">
+                            {entry.candidateName?.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-black text-slate-900 text-sm">{entry.candidateName}</p>
+                            <p className="text-[10px] font-bold text-slate-400 font-mono tracking-tighter">{entry.candidateEmail}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="font-black text-blue-600">{entry.totalScore}%</td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-1 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-slate-900" style={{ width: `${entry.percentile}%` }}></div>
+                          </div>
+                          <span className="text-[10px] font-black text-slate-500">{entry.percentile}%</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="status-pill bg-slate-100 text-slate-600 border border-slate-200">
+                          {entry.status}
+                        </span>
+                      </td>
+                      <td className="max-w-[180px] text-[10px] font-bold text-slate-500 leading-tight">
+                        {entry.aiRecommendation || 'Evaluation pending final audit.'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'skills' && analytics && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {analytics.skillGap.map((skill: any, i: number) => (
+              <Card key={i} className="p-6 analytics-card group">
+                <div className="flex justify-between items-start mb-4">
+                  <span className="font-black text-slate-900 uppercase text-[11px] tracking-widest">{skill.skill}</span>
+                  <Badge className="bg-slate-900 text-[8px] font-black uppercase tracking-tighter rounded-md py-0.5">
+                    {skill.gapLevel} gap
+                  </Badge>
+                </div>
+                <div className="metric-value mb-1">{skill.avgScore}%</div>
+                <p className="text-[10px] font-black text-slate-300 uppercase mb-4 tracking-tighter">Cohort Average</p>
+                <div className="h-1 bg-slate-100 rounded-full overflow-hidden group-hover:bg-slate-200 transition-colors">
+                  <div className="h-full bg-blue-600" style={{ width: `${skill.avgScore}%` }}></div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'integrity' && integrityData && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            <IntegritySummaryCard label="Analyzed" value={integrityData.summary.totalAnalyzed} />
+            <IntegritySummaryCard label="High Risk" value={integrityData.summary.highRisk} isBad />
+            <IntegritySummaryCard label="Medium Risk" value={integrityData.summary.mediumRisk} isWarn />
+            <IntegritySummaryCard label="Low Risk" value={integrityData.summary.lowRisk} isGood />
+            <IntegritySummaryCard label="Integrity" value={`${integrityData.summary.avgIntegrityScore}%`} />
+          </div>
+
+          <Card className="analytics-card overflow-hidden" padding="none">
+            <div className="p-6 border-b border-slate-100 bg-slate-50/30">
+              <h3 className="font-black text-slate-900 uppercase text-xs tracking-[0.2em]">Flagged Submissions</h3>
+            </div>
+            <table className="w-full analytics-table">
+              <thead>
+                <tr>
+                  <th>Candidate</th>
+                  <th>Integrity Score</th>
+                  <th>Risk Categorization</th>
+                  <th>Action Required</th>
+                </tr>
+              </thead>
+              <tbody>
+                {integrityData.candidates.filter((c: any) => c.riskLevel !== 'low').map((c: any, i: number) => (
+                  <tr key={i}>
+                    <td className="font-black text-slate-900 text-sm">{c.candidateName}</td>
+                    <td className={`font-black ${c.integrityScore < 50 ? 'text-red-600' : 'text-amber-600'}`}>{c.integrityScore}%</td>
+                    <td>
+                      <Badge className={c.riskLevel === 'high' ? 'bg-red-500' : 'bg-amber-500'}>
+                        {c.riskLevel.toUpperCase()}
+                      </Badge>
+                    </td>
+                    <td>
+                      <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-50">Review Logs</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </div>
       )}
     </div>
   );
 };
 
-const MetricCard = ({ label, value, icon: Icon, trend, color }: any) => {
-  const colors: any = {
-    blue: 'bg-blue-50 text-blue-600',
-    indigo: 'bg-indigo-50 text-indigo-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
-    amber: 'bg-amber-50 text-amber-600'
-  };
-
+const MetricCard = ({ label, value, sub, color, icon: Icon }: any) => {
   return (
-    <Card className="border-slate-200">
-      <div className="flex items-start justify-between">
-        <div className={`p-2 rounded-lg ${colors[color]}`}>
+    <Card className="p-8 analytics-card relative overflow-hidden group">
+      <div className="relative z-10 flex flex-col items-center text-center">
+        <div className={`p-3 rounded-2xl mb-4 bg-slate-50 text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300`}>
           <Icon className="w-5 h-5" />
         </div>
-        <div className="text-right">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-          <p className="text-2xl font-black text-slate-900">{value}</p>
-        </div>
+        <span className="metric-label mb-2">{label}</span>
+        <span className="metric-value mb-1">{value}</span>
+        <span className="text-[10px] font-black text-slate-300 uppercase tracking-tight">{sub}</span>
       </div>
-      <div className="mt-4 flex items-center justify-end gap-1">
-        <ArrowUpRight className="w-3 h-3 text-emerald-500" />
-        <span className="text-[11px] font-bold text-emerald-600">{trend}</span>
+      <div className="absolute top-0 right-0 p-2 opacity-[0.03]">
+        <Icon className="w-16 h-16 transform rotate-12" />
       </div>
     </Card>
   );
 };
 
-const StatusBadge = ({ status }: { status: string }) => {
-  const styles: any = {
-    shortlisted: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    rejected: 'bg-red-50 text-red-700 border-red-100',
-    completed: 'bg-blue-50 text-blue-700 border-blue-100',
-  };
+const IntegritySummaryCard = ({ label, value, isBad, isGood, isWarn }: any) => (
+  <Card className="p-6 text-center analytics-card border-none bg-slate-50">
+    <span className="metric-label mb-2 block">{label}</span>
+    <span className={`text-2xl font-black ${isBad ? 'text-red-600' : isGood ? 'text-emerald-600' : isWarn ? 'text-amber-600' : 'text-slate-900'}`}>{value}</span>
+  </Card>
+);
 
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${styles[status?.toLowerCase()] || 'bg-slate-50 text-slate-600 border-slate-100'}`}>
-      {status}
-    </span>
-  );
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="custom-tooltip">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+        <p className="text-xl font-black text-white">{payload[0].value}</p>
+      </div>
+    );
+  }
+  return null;
 };

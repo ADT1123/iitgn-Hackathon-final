@@ -1,3 +1,4 @@
+// src/pages/dashboard/DashboardPage.tsx
 import React, { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card } from '@/components/ui/Card';
@@ -17,6 +18,9 @@ import {
   BarChart2
 } from 'lucide-react';
 import { jobAPI, applicationAPI } from '@/services/api';
+import {
+  AreaChart, Area, XAxis, Tooltip, ResponsiveContainer
+} from 'recharts';
 
 interface StatsCardProps {
   label: string;
@@ -80,6 +84,7 @@ export const DashboardPage: React.FC = () => {
   });
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [recentApplications, setRecentApplications] = useState<any[]>([]);
+  const [trendData, setTrendData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const user = JSON.parse(localStorage.getItem('user') || '{"name": "Recruiter"}');
@@ -112,6 +117,17 @@ export const DashboardPage: React.FC = () => {
         pendingReviews: apps.filter((a: any) => a.status === 'pending' || a.status === 'submitted').length,
         shortlisted: apps.filter((a: any) => a.status === 'shortlisted').length
       });
+
+      // Simple trend mock-up based on apps
+      const last5Days = [4, 3, 2, 1, 0].map(d => {
+        const date = new Date();
+        date.setDate(date.getDate() - d);
+        return {
+          day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          apps: apps.filter((a: any) => new Date(a.createdAt).toDateString() === date.toDateString()).length
+        };
+      });
+      setTrendData(last5Days);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -135,7 +151,7 @@ export const DashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto pb-20">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-100 pb-8">
         <div>
@@ -149,10 +165,10 @@ export const DashboardPage: React.FC = () => {
           <p className="text-slate-500 mt-1.5 text-xs font-bold uppercase tracking-tight opacity-70">Pipeline pulse is healthy • {stats.pendingReviews} urgent actions</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={() => navigate('/jobs')} className="rounded-xl h-11 px-6 font-bold text-xs uppercase tracking-tight">
+          <Button variant="secondary" onClick={() => navigate('/jobs')} className="rounded-xl h-11 px-6 font-bold text-xs uppercase tracking-tight text-slate-600">
             Manage Pool
           </Button>
-          <Button variant="primary" onClick={() => navigate('/jobs/create')} className="bg-slate-900 hover:bg-black text-white rounded-xl h-11 px-6 font-bold text-xs uppercase tracking-tight shadow-lg shadow-slate-200">
+          <Button variant="primary" onClick={() => navigate('/jobs/create')} className="bg-slate-900 hover:bg-black text-white rounded-xl h-11 px-6 font-bold text-xs uppercase tracking-tight shadow-xl shadow-slate-200">
             <Plus className="w-3.5 h-3.5 mr-2" />
             Create Position
           </Button>
@@ -192,109 +208,127 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Applications */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">Recent Applications</h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/candidates')}>
-              View All <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-
-          <Card padding="none" className="overflow-hidden border-slate-200">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[11px]">
-                <thead className="bg-slate-50 border-b border-slate-100">
-                  <tr>
-                    <th className="px-6 py-3 font-black text-slate-400 uppercase tracking-widest">Candidate</th>
-                    <th className="px-6 py-3 font-black text-slate-400 uppercase tracking-widest">Target Role</th>
-                    <th className="px-6 py-3 font-black text-slate-400 uppercase tracking-widest">Status</th>
-                    <th className="px-6 py-3 font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {recentApplications.map((app: any) => (
-                    <tr key={app._id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 text-[9px] font-black border border-slate-200 uppercase">
-                            {app.candidateName?.split(' ').map((n: string) => n[0]).join('')}
-                          </div>
-                          <div>
-                            <p className="font-black text-slate-900 leading-tight">{app.candidateName}</p>
-                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">{app.candidateEmail}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-3.5 text-slate-600 font-bold">
-                        {app.job?.title || 'System Admin'}
-                      </td>
-                      <td className="px-6 py-3.5">
-                        <StatusBadge status={app.status} />
-                      </td>
-                      <td className="px-6 py-3.5 text-right">
-                        <Button variant="ghost" size="sm" onClick={() => navigate(`/candidates/profile/${app.candidate?._id || app.candidateId || app._id}`)} className="text-[10px] font-black uppercase tracking-tighter text-blue-600 hover:bg-blue-50">
-                          Review
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {recentApplications.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
-                        No recent applications to display.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+        {/* Recent Applications & Pulse */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Trend Micro-graph */}
+          <Card className="p-6 border-slate-100 shadow-sm bg-gradient-to-br from-white to-slate-50/50 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-6 relative z-10">
+              <div>
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Pipeline Pulse</h2>
+                <p className="text-lg font-black text-slate-900 uppercase tracking-tight">Application Velocity</p>
+              </div>
+              <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+                <TrendingUp className="w-3 h-3" />
+                <span className="text-[10px] font-black uppercase font-mono">Real-time</span>
+              </div>
+            </div>
+            <div className="h-32 -ml-6 -mr-6 -mb-6 relative z-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData}>
+                  <defs>
+                    <linearGradient id="colorApps" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Tooltip
+                    contentStyle={{ borderRadius: '0.75rem', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: '900' }}
+                  />
+                  <Area type="monotone" dataKey="apps" stroke="#3b82f6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorApps)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </Card>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">High Priority Queue</h2>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/candidates')} className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                Entire History <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+
+            <Card padding="none" className="overflow-hidden border-slate-100 shadow-xl shadow-slate-100/30 bg-white">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50/50 border-b border-slate-100">
+                    <tr>
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Identity</th>
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Job Node</th>
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                      <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Audit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {recentApplications.map((app: any) => (
+                      <tr key={app._id} className="hover:bg-slate-50/80 transition-all border-b border-slate-50 last:border-0 group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[9px] font-black uppercase">
+                              {app.candidateName?.split(' ').map((n: string) => n[0]).join('')}
+                            </div>
+                            <div>
+                              <p className="font-black text-slate-900 text-sm group-hover:text-blue-600 transition-colors">{app.candidateName}</p>
+                              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">{app.candidateEmail}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[11px] font-black text-slate-600 uppercase tracking-tighter">{app.job?.title || 'System Admin'}</span>
+                        </td>
+                        <td className="px-6 py-4 uppercase">
+                          <StatusBadge status={app.status} />
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Button variant="ghost" size="sm" onClick={() => navigate(`/candidates/profile/${app.candidate?._id || app.candidateId || app._id}`)} className="text-[10px] font-black uppercase tracking-tighter text-blue-600 hover:bg-blue-50 h-8 px-4 rounded-lg">
+                            Evaluate
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
         </div>
 
-        {/* Newest Jobs */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Postings</h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/jobs')} className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">
-              Manage All
+        {/* Newest Jobs Sidebar */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase">Hot Postings</h2>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/jobs')} className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+              Manage
             </Button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {recentJobs.map((job: any) => (
               <Card
                 key={job._id}
-                padding="sm"
-                variant="outline"
                 onClick={() => navigate(`/jobs/${job._id}`)}
-                className="hover:border-blue-200 hover:bg-white transition-all group border-slate-100 p-4"
+                className="p-6 border-slate-100 shadow-md hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer group relative overflow-hidden bg-white"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-9 h-9 bg-slate-50 text-slate-600 rounded-lg flex items-center justify-center border border-slate-100 transition-colors group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100">
-                    <Briefcase className="w-4 h-4" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-all text-slate-300">
+                    <Briefcase className="w-5 h-5" />
                   </div>
-                  <Badge variant={job.status === 'active' ? 'success' : 'default'} className="text-[9px] font-black uppercase tracking-widest">
+                  <Badge variant={job.status === 'active' ? 'success' : 'default'} className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md">
                     {job.status}
                   </Badge>
                 </div>
-                <h3 className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">{job.title}</h3>
-                <div className="mt-3 flex items-center justify-between text-[10px] text-slate-400 font-black uppercase tracking-tighter">
-                  <span className="flex items-center gap-1">
+                <h3 className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{job.title}</h3>
+                <div className="mt-4 flex items-center justify-between text-[9px] text-slate-400 font-black uppercase tracking-[0.1em]">
+                  <span className="flex items-center gap-1.5">
                     <Users className="w-3 h-3 text-slate-300" />
-                    {job.applicantsCount || 0} Pool
+                    {job.applicantsCount || 0} Applicants
                   </span>
-                  <span className="flex items-center gap-1 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity translate-x-1">
-                    Enter <ArrowRight className="w-3 h-3" />
-                  </span>
+                  <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                    <ArrowRight className="w-3 h-3" />
+                  </div>
                 </div>
               </Card>
             ))}
-            {recentJobs.length === 0 && (
-              <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                <p className="text-sm">No active job postings.</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
