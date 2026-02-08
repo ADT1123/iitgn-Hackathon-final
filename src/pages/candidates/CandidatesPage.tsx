@@ -51,7 +51,7 @@ export const CandidatesPage: React.FC = () => {
       setApplications(response.data.data || response.data || []);
     } catch (error) {
       console.error('Failed to load applications:', error);
-      toast.error('❌ Failed to synchronize talent pool.');
+      toast.error('Failed to synchronize talent pool.');
     } finally {
       setLoading(false);
     }
@@ -59,15 +59,15 @@ export const CandidatesPage: React.FC = () => {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!window.confirm('🗑️ Are you sure you want to delete this candidate? This will also remove their associated user account.')) return;
+    if (!window.confirm('Are you sure you want to delete this candidate? This will also remove their associated user account.')) return;
 
     try {
       await candidatesAPI.deleteCandidate(id);
-      toast.success('👤 Candidate record removed successfully.');
+      toast.success('Candidate record removed successfully.');
       loadApplications();
     } catch (error) {
       console.error('Delete failed:', error);
-      toast.error('❌ Failed to delete candidate record.');
+      toast.error('Failed to delete candidate record.');
     }
   };
 
@@ -79,11 +79,11 @@ export const CandidatesPage: React.FC = () => {
     try {
       await applicationAPI.bulkUpdate(selectedIds, status);
       setSelectedIds([]);
-      toast.success(`✅ Updated ${selectedIds.length} candidates status.`);
+      toast.success(`Updated ${selectedIds.length} candidates status.`);
       loadApplications();
     } catch (error) {
       console.error('Bulk action failed:', error);
-      toast.error('❌ Bulk update failed.');
+      toast.error('Bulk update failed.');
     }
   };
 
@@ -100,15 +100,15 @@ export const CandidatesPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-blue-600 font-bold text-[10px] uppercase tracking-widest mb-1">
             <Users className="w-3.5 h-3.5" />
-            <span>Human Capital Pool 🌐</span>
+            <span>Human Capital Pool</span>
           </div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Talent Management</h1>
-          <p className="text-slate-500 mt-1 text-sm font-medium">Review assessment results and orchestrate your hiring pipeline with AI insights. 🚀</p>
+          <p className="text-slate-500 mt-1 text-sm font-medium">Review assessment results and orchestrate your hiring pipeline with AI insights.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" className="rounded-xl border-slate-200 font-bold text-xs uppercase tracking-widest px-5 h-10 shadow-sm hover:bg-slate-50">
             <Download className="w-3.5 h-3.5 mr-2" />
-            Export Data 📊
+            Export Data
           </Button>
         </div>
       </div>
@@ -120,7 +120,7 @@ export const CandidatesPage: React.FC = () => {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
             <input
               type="text"
-              placeholder="Search talent by name, email or role... 🔍"
+              placeholder="Search talent by name, email or role..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-[13px] outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all font-bold placeholder:text-slate-300"
@@ -133,11 +133,11 @@ export const CandidatesPage: React.FC = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="appearance-none pl-4 pr-10 py-2.5 bg-white border border-slate-200 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-500 outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all min-w-[170px]"
             >
-              <option value="all">📁 All Phases</option>
-              <option value="completed">✅ Completed</option>
-              <option value="shortlisted">⭐ Shortlisted</option>
-              <option value="rejected">❌ Rejected</option>
-              <option value="in-progress">⏳ Active Session</option>
+              <option value="all">All Phases</option>
+              <option value="completed">Completed</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="rejected">Rejected</option>
+              <option value="in-progress">Active Session</option>
             </select>
             <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
@@ -145,7 +145,7 @@ export const CandidatesPage: React.FC = () => {
 
         {selectedIds.length > 0 && (
           <div className="flex items-center gap-3 bg-blue-50/50 p-2 rounded-2xl border border-blue-100 animate-in fade-in slide-in-from-right-4">
-            <span className="px-3 text-[10px] font-black text-blue-700 uppercase tracking-widest">{selectedIds.length} Selected 🏹</span>
+            <span className="px-3 text-[10px] font-black text-blue-700 uppercase tracking-widest">{selectedIds.length} Selected</span>
             <div className="flex gap-1.5">
               <Button
                 size="sm"
@@ -153,7 +153,7 @@ export const CandidatesPage: React.FC = () => {
                 onClick={() => handleBulkAction('shortlist')}
               >
                 <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
-                Shortlist ⭐
+                Shortlist
               </Button>
               <Button
                 size="sm"
@@ -162,7 +162,7 @@ export const CandidatesPage: React.FC = () => {
                 onClick={() => handleBulkAction('reject')}
               >
                 <XCircle className="w-3.5 h-3.5 mr-1.5" />
-                Reject ❌
+                Reject
               </Button>
             </div>
           </div>
@@ -179,14 +179,14 @@ export const CandidatesPage: React.FC = () => {
                 <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
               </div>
             </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Synchronizing Talent Pool... ⏳</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Synchronizing Talent Pool...</p>
           </div>
         ) : filteredApplications.length === 0 ? (
           <div className="text-center py-32 border-dashed border-2 m-4 rounded-2xl border-slate-100">
             <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-slate-100 shadow-inner">
               <Search className="w-8 h-8 text-slate-200" />
             </div>
-            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">No Results Found 🕵️‍♂️</h3>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">No Results Found</h3>
             <p className="text-slate-400 max-w-xs mx-auto mt-2 text-sm font-medium">Try refining your search or filters to discover potential talent for your roles.</p>
           </div>
         ) : (
@@ -210,11 +210,11 @@ export const CandidatesPage: React.FC = () => {
                       />
                     </div>
                   </th>
-                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px]">Candidate Identity 👤</th>
-                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px]">Target Role 🎯</th>
-                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px] text-center">AI Performance 📊</th>
-                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px]">Trust Score 🛡️</th>
-                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Phase 🏁</th>
+                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px]">Candidate Identity</th>
+                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px]">Target Role</th>
+                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px] text-center">AI Performance</th>
+                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px]">Trust Score</th>
+                  <th className="px-6 py-5 font-black text-slate-400 uppercase tracking-widest text-[9px] text-right">Phase</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -337,16 +337,15 @@ const StatusBadge = ({ status }: { status: string }) => {
   };
 
   const icons: any = {
-    shortlisted: '⭐',
-    rejected: '❌',
-    completed: '✅',
-    flagged: '⚠️',
-    'in-progress': '⏳',
+    shortlisted: '',
+    rejected: '',
+    completed: '',
+    flagged: '',
+    'in-progress': '',
   };
 
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${styles[status?.toLowerCase()] || 'bg-slate-50 text-slate-500 border-slate-100'}`}>
-      <span>{icons[status?.toLowerCase()] || '🔹'}</span>
       {status}
     </span>
   );

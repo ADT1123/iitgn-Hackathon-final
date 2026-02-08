@@ -79,7 +79,7 @@ export const CandidateAssessment: React.FC = () => {
           setTimeRemaining(remaining);
           setStarted(true);
         } else {
-          toast.error('⏰ Time has expired for this assessment.');
+          toast.error('Time has expired for this assessment.');
           navigate('/candidate/applications');
         }
       } else {
@@ -87,7 +87,7 @@ export const CandidateAssessment: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to load assessment:', error);
-      toast.error('❌ Failed to load assessment. Please try again.');
+      toast.error('Failed to load assessment. Please try again.');
       navigate('/candidate/jobs');
     } finally {
       setLoading(false);
@@ -159,11 +159,11 @@ export const CandidateAssessment: React.FC = () => {
       }
 
       await applicationAPI.submitApplication(applicationId, {});
-      toast.success('🚀 Assessment submitted successfully! Good luck! 🎉');
+      toast.success('Assessment submitted successfully! Good luck!');
       navigate('/candidate/applications');
     } catch (error) {
       console.error('Failed to submit assessment:', error);
-      toast.error('❌ Failed to submit assessment. Please check your connection.');
+      toast.error('Failed to submit assessment. Please check your connection.');
     } finally {
       setSubmitting(false);
     }
@@ -179,7 +179,7 @@ export const CandidateAssessment: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-        <p className="text-slate-500 font-medium animate-pulse">Preparing your assessment... ⏳</p>
+        <p className="text-slate-500 font-medium animate-pulse">Preparing your assessment...</p>
       </div>
     );
   }
@@ -188,7 +188,7 @@ export const CandidateAssessment: React.FC = () => {
     return (
       <Card className="max-w-md mx-auto mt-20 text-center p-8 border-slate-200">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Assessment Not Found 🔍</h2>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Assessment Not Found</h2>
         <p className="text-slate-500 mb-6 text-sm">We couldn't find the assessment you're looking for. It might have been closed or moved.</p>
         <Button
           variant="secondary"
@@ -215,7 +215,7 @@ export const CandidateAssessment: React.FC = () => {
               <div>
                 <Badge variant="info" className="mb-2 bg-blue-50 text-blue-700 border-blue-100 font-black text-[10px] uppercase tracking-widest px-3">Official Assessment</Badge>
                 <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">{assessment.title}</h1>
-                <p className="text-slate-500 mt-2 font-medium max-w-lg mx-auto">Ready to showcase your skills? Review the instructions carefully before launching your session. 🚀</p>
+                <p className="text-slate-500 mt-2 font-medium max-w-lg mx-auto">Ready to showcase your skills? Review the instructions carefully before launching your session.</p>
               </div>
             </div>
 
@@ -244,12 +244,12 @@ export const CandidateAssessment: React.FC = () => {
               </div>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
                 {[
-                  'Assessments are timed and cannot be paused. ⏳',
-                  'Avoid switching tabs or windows during session. 🛡️',
-                  'Answers are auto-saved upon navigation. 💾',
-                  'Ensure stable internet before starting. 🌐',
-                  'Final submission is required before time ends. 🏁',
-                  'AI proctoring is active for this session. 🤖'
+                  'Assessments are timed and cannot be paused.',
+                  'Avoid switching tabs or windows during session.',
+                  'Answers are auto-saved upon navigation.',
+                  'Ensure stable internet before starting.',
+                  'Final submission is required before time ends.',
+                  'AI proctoring is active for this session.'
                 ].map((rule, i) => (
                   <li key={i} className="flex items-start gap-2 text-[12px] font-bold text-slate-600">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0"></span>
@@ -326,8 +326,8 @@ export const CandidateAssessment: React.FC = () => {
                   <label
                     key={idx}
                     className={`flex items-center gap-4 p-5 border-2 rounded-2xl cursor-pointer transition-all duration-200 ${answers[currentQuestion._id] === option.text
-                        ? 'border-blue-600 bg-blue-50/50 ring-4 ring-blue-500/5'
-                        : 'border-slate-100 hover:border-slate-300 bg-white hover:bg-slate-50'
+                      ? 'border-blue-600 bg-blue-50/50 ring-4 ring-blue-500/5'
+                      : 'border-slate-100 hover:border-slate-300 bg-white hover:bg-slate-50'
                       }`}
                   >
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${answers[currentQuestion._id] === option.text ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
@@ -369,7 +369,7 @@ export const CandidateAssessment: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between px-2">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Write clean functional code</span>
-                  <Badge variant="outline" className="font-black text-[9px] uppercase tracking-tighter">JavaScript / Python</Badge>
+                  <Badge variant="info" className="font-black text-[9px] uppercase tracking-tighter">JavaScript / Python</Badge>
                 </div>
                 <div className="rounded-2xl border-2 border-slate-100 overflow-hidden bg-slate-900 shadow-2xl">
                   <div className="px-4 py-3 bg-slate-800 border-b border-slate-700 flex items-center gap-1.5">

@@ -110,7 +110,7 @@ export const CandidateDashboard: React.FC = () => {
             <Badge variant="info" className="bg-blue-600 text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 mb-2 border-0">
               Candidate Terminal
             </Badge>
-            <h1 className="text-4xl font-black tracking-tight">Welcome back, {user.name?.split(' ')[0] || 'Talent'} ✨</h1>
+            <h1 className="text-4xl font-black tracking-tight">Welcome back, {user.name?.split(' ')[0] || 'Talent'}</h1>
             <p className="text-slate-400 font-medium max-w-md">Your career trajectory is accelerating. You've outpaced <span className="text-blue-400 font-black">78%</span> of recent applicants in Technical Aptitude.</p>
           </div>
           <Button

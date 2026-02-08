@@ -47,7 +47,7 @@ export const AnalyticsPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching jobs:', err);
-      toast.error('❌ Failed to load jobs');
+      toast.error('Failed to load jobs');
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ export const AnalyticsPage: React.FC = () => {
       setIntegrityData(integrityRes.data.data || integrityRes.data);
     } catch (err) {
       console.error('Error fetching analytics data:', err);
-      toast.error('❌ Failed to refresh analytics');
+      toast.error('Failed to refresh analytics');
     } finally {
       setRefreshing(false);
     }
@@ -84,10 +84,10 @@ export const AnalyticsPage: React.FC = () => {
       a.href = url;
       a.download = `analytics_${selectedJobId}.${format}`;
       a.click();
-      toast.success(`📤 Exported as ${format.toUpperCase()}`);
+      toast.success(`Exported as ${format.toUpperCase()}`);
     } catch (err) {
       console.error('Export error:', err);
-      toast.error('❌ Export failed');
+      toast.error('Export failed');
     }
   };
 
